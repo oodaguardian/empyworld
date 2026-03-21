@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageLayout from '../components/PageLayout';
 import MoviePlayer from '../components/MoviePlayer';
-import { fetchMovies, getThumbnailUrl, isBunnyConfigured } from '../services/bunny';
+import { fetchMovies, isBunnyConfigured } from '../services/bunny';
 import { useNavigate } from 'react-router-dom';
 
 export default function Movies() {
@@ -77,13 +77,10 @@ export default function Movies() {
                 className="relative rounded-2xl overflow-hidden border-2 border-white/10 hover:border-empy-pink/60 transition-all text-left group"
                 style={{ aspectRatio: '16/10', background: '#1a1040' }}
               >
-                {/* Thumbnail */}
-                <img
-                  src={getThumbnailUrl(movie.bunnyId)}
-                  alt={movie.title}
-                  className="w-full h-full object-cover"
-                  onError={(e) => { e.target.style.display = 'none'; }}
-                />
+                {/* Movie icon placeholder */}
+                <div className="w-full h-full flex items-center justify-center text-5xl opacity-40">
+                  🎬
+                </div>
 
                 {/* Play overlay */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"

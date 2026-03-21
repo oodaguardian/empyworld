@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { uploadMovie, saveMovieMetadata, fetchMovies, deleteVideo, getThumbnailUrl, isBunnyConfigured } from '../services/bunny';
+import { uploadMovie, fetchMovies, deleteMovie, getVideoUrl, isBunnyConfigured } from '../services/bunny';
 import logo from '../emplogo.png';
 
 const UPLOAD_PIN = localStorage.getItem('empyPIN') || '1234';
@@ -156,18 +156,7 @@ export default function MovieUpload() {
     };
 
     try {
-      const videoId = await uploadMovie(file, title.trim(), trackProgress);
-
-      // Wait briefly for Bunny to process the thumbnail
-      await new Promise(r => setTimeout(r, 2000));
-
-      await saveMovieMetadata({
-        id: videoId,
-        bunnyId: videoId,
-        title: title.trim(),
-        addedAt: new Date().toISOString(),
-        size: file.size,
-      });
+      await uploadMovie(file, title.trim(), trackProgress);
 
       setSuccess(`✅ "${title}" uploaded successfully!`);
       setFile(null);
@@ -184,7 +173,7 @@ export default function MovieUpload() {
   const handleDelete = async (movie) => {
     if (!confirm(`Delete "${movie.title}"? This cannot be undone.`)) return;
     try {
-      await deleteVideo(movie.bunnyId);
+      await deleteMovie(movie.filename);
       loadMovies();
     } catch (err) {
       setError(`Delete failed: ${err.message}`);
@@ -352,11 +341,10 @@ export default function MovieUpload() {
               <div key={movie.id}
                 className="flex items-center gap-3 rounded-2xl p-3"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <img src={getThumbnailUrl(movie.bunnyId)} alt={movie.title}
-                  className="h-12 w-20 object-cover rounded-lg flex-shrink-0"
-                  style={{ background: '#1a1040' }}
-                  onError={e => e.target.style.visibility = 'hidden'}
-                />
+                <div className="h-12 w-20 flex items-center justify-center rounded-lg flex-shrink-0 text-2xl"
+                  style={{ background: '#1a1040' }}>
+                  🎬
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-display text-sm truncate">{movie.title}</p>
                   <p className="text-white/40 font-body text-xs">

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getEmbedUrl } from '../services/bunny';
+import { getVideoUrl } from '../services/bunny';
 import logo from '../emplogo.png';
 
 export default function MoviePlayer({ movie, onClose }) {
@@ -74,13 +74,14 @@ export default function MoviePlayer({ movie, onClose }) {
           <div className="absolute bottom-0 right-0 w-40 h-0.5 z-10"
             style={{ background: 'linear-gradient(to left, #FF69B4, transparent)' }} />
 
-          <iframe
-            src={getEmbedUrl(movie.bunnyId)}
+          <video
+            src={getVideoUrl(movie.filename)}
             className="w-full h-full"
-            frameBorder="0"
-            allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
-            allowFullScreen
+            controls
+            autoPlay
+            playsInline
             title={movie.title}
+            style={{ background: '#000' }}
           />
         </div>
 

@@ -7,10 +7,10 @@
 # Build command (fill in your actual values):
 #   docker build \
 #     --build-arg VITE_YOUTUBE_API_KEY=<key> \
-#     --build-arg VITE_BUNNY_LIBRARY_ID=<id> \
-#     --build-arg VITE_BUNNY_STREAM_API_KEY=<key> \
-#     --build-arg VITE_BUNNY_CDN_HOSTNAME=<hostname> \
-#     --build-arg VITE_BUNNY_EDGE_API_URL=https://api.empy.my/movies \
+#     --build-arg VITE_BUNNY_STORAGE_ZONE=empy-movies \
+#     --build-arg VITE_BUNNY_STORAGE_HOST=storage.bunnycdn.com \
+#     --build-arg VITE_BUNNY_STORAGE_PASSWORD=<password> \
+#     --build-arg VITE_BUNNY_MOVIES_CDN=empy-movies-cdn.b-cdn.net \
 #     -t yourdockerhubuser/empy-tv:latest .
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -27,17 +27,17 @@ COPY . .
 
 # Declare build-time env vars (VITE_ prefix = available in browser bundle)
 ARG VITE_YOUTUBE_API_KEY
-ARG VITE_BUNNY_LIBRARY_ID
-ARG VITE_BUNNY_STREAM_API_KEY
-ARG VITE_BUNNY_CDN_HOSTNAME
-ARG VITE_BUNNY_EDGE_API_URL
+ARG VITE_BUNNY_STORAGE_ZONE
+ARG VITE_BUNNY_STORAGE_HOST
+ARG VITE_BUNNY_STORAGE_PASSWORD
+ARG VITE_BUNNY_MOVIES_CDN
 
 # Expose them to Vite build
 ENV VITE_YOUTUBE_API_KEY=$VITE_YOUTUBE_API_KEY
-ENV VITE_BUNNY_LIBRARY_ID=$VITE_BUNNY_LIBRARY_ID
-ENV VITE_BUNNY_STREAM_API_KEY=$VITE_BUNNY_STREAM_API_KEY
-ENV VITE_BUNNY_CDN_HOSTNAME=$VITE_BUNNY_CDN_HOSTNAME
-ENV VITE_BUNNY_EDGE_API_URL=$VITE_BUNNY_EDGE_API_URL
+ENV VITE_BUNNY_STORAGE_ZONE=$VITE_BUNNY_STORAGE_ZONE
+ENV VITE_BUNNY_STORAGE_HOST=$VITE_BUNNY_STORAGE_HOST
+ENV VITE_BUNNY_STORAGE_PASSWORD=$VITE_BUNNY_STORAGE_PASSWORD
+ENV VITE_BUNNY_MOVIES_CDN=$VITE_BUNNY_MOVIES_CDN
 
 RUN npm run build
 
