@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- Global Reset for Full-Viewport Snap ---- */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  font-family: 'Nunito', sans-serif;
+  background: linear-gradient(135deg, #0F0F23 0%, #1A1A2E 40%, #1E3A5F 100%);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+/* ---- Glitter Text Effect ---- */
+.glitter-text {
+  background: linear-gradient(
+    90deg,
+    #FFD700 0%,
+    #FFF8DC 15%,
+    #FF69B4 30%,
+    #FFD700 45%,
+    #FFF8DC 60%,
+    #FF69B4 75%,
+    #FFD700 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: glitterShift 3s linear infinite;
+  filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.5));
+}
+
+@keyframes glitterShift {
+  0% { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+
+/* ---- Card Styles ---- */
+.empy-card {
+  background: linear-gradient(145deg, rgba(255, 105, 180, 0.15), rgba(74, 144, 217, 0.15));
+  border: 2px solid rgba(255, 215, 0, 0.3);
+  border-radius: 1rem;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  overflow: hidden;
+}
+
+.empy-card:hover,
+.empy-card:active {
+  transform: scale(1.04);
+  border-color: #FFD700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.3), 0 0 40px rgba(255, 105, 180, 0.2);
+}
+
+.empy-card:active {
+  transform: scale(0.97);
+}
+
+/* ---- Swiper Overrides ---- */
+.swiper {
+  width: 100%;
+  height: 100%;
+}
+
+.swiper-slide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.swiper-pagination-bullet {
+  background: #FFD700 !important;
+  opacity: 0.5;
+}
+
+.swiper-pagination-bullet-active {
+  opacity: 1 !important;
+  background: #FF69B4 !important;
+}
+
+/* ---- Splash Stars ---- */
+.star {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #FFD700;
+  border-radius: 50%;
+  animation: twinkle 2s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* ---- Scrollbar Hide ---- */
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
+
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ---- Skeleton Loading Animation ---- */
+@keyframes skeletonWave {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ---- Safe area insets for notched devices ---- */
+@supports (padding: env(safe-area-inset-top)) {
+  #root {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}

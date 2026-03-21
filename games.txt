@@ -1,0 +1,415 @@
+
+SYSTEM ROLE:
+You are a senior full-stack developer and game developer building a free, safe,
+educational kids app for a 5-year-old girl. You will install dependencies, fetch
+open-source resources, build games from scratch, and integrate third-party content.
+All content must be child-safe, colorful, and mobile-first (iPhone/Android WebView).
+
+════════════════════════════════════════
+PHASE 1 — PROJECT SETUP
+════════════════════════════════════════
+
+Initialize a React Native + Expo project (or React web app if mobile web):
+
+  npx create-expo-app KiddieApp --template blank
+  cd KiddieApp
+
+Install all required dependencies:
+
+  # Navigation
+  npx expo install @react-navigation/native @react-navigation/stack
+  npx expo install react-native-screens react-native-safe-area-context
+
+  # WebView (for iframes + deeplinks)
+  npx expo install react-native-webview
+
+  # Audio (for read-aloud / TTS)
+  npx expo install expo-speech expo-av
+
+  # Animations
+  npx expo install react-native-reanimated lottie-react-native
+
+  # Gestures (for drag/drop games)
+  npx expo install react-native-gesture-handler
+
+  # SVG (for coloring book, shapes)
+  npx expo install react-native-svg
+
+  # Storage (save progress, scores)
+  npx expo install @react-native-async-storage/async-storage
+
+  # Voice recognition (for voice search)
+  npx expo install expo-speech @react-native-voice/voice
+
+  # Deep linking
+  npx expo install expo-linking
+
+  # Open Library API (books) - no install needed, use fetch()
+  # Scratch embed - no install needed, use WebView
+  # Educandy embed - no install needed, use WebView
+
+════════════════════════════════════════
+PHASE 2 — OPEN SOURCE RESOURCES TO USE
+════════════════════════════════════════
+
+Use ONLY these open-source/free resources. Do not use paid assets.
+
+FONTS:
+  Google Fonts: Fredoka One, Nunito, Bubblegum Sans
+  Load via: @expo-google-fonts/fredoka-one
+
+ICONS & EMOJIS:
+  Use native emoji as icons throughout (no icon library needed)
+  Supplementary: react-native-vector-icons (MaterialCommunityIcons)
+
+ANIMATIONS:
+  Lottie files from: https://lottiefiles.com/featured (free tier)
+  Use for: confetti on win, loading states, character reactions
+
+GAME ASSETS (all open-source/CC0):
+  Kenney.nl assets: https://kenney.nl/assets (100% free, CC0)
+    → Use: Animal Pack, Racing Pack, Puzzle Pack, UI Pack
+  OpenGameArt.org: https://opengameart.org (filter: CC0)
+    → Use: bubble sprites, background tiles, card backs
+  Freesound.org: https://freesound.org (filter: CC0)
+    → Use: pop sounds, correct answer chimes, background music
+
+BOOKS (Open Library API — free, no key):
+  Endpoint: https://openlibrary.org/subjects/childrens_picture_books.json?limit=20
+  Cover art: https://covers.openlibrary.org/b/id/{cover_id}-L.jpg
+  Read aloud: Use expo-speech (device TTS) to read book text page by page
+
+COLORING PAGES (SVG — open source):
+  Generate programmatically using react-native-svg
+  Use simple SVG paths for: animals, shapes, vehicles, flowers
+  Let child tap regions to fill with color picker
+
+════════════════════════════════════════
+PHASE 3 — APP STRUCTURE
+════════════════════════════════════════
+
+Create this folder structure:
+
+  /src
+    /screens
+      HomeScreen.jsx          ← Main hub with category tiles
+      GamesScreen.jsx         ← All games hub
+      BooksScreen.jsx         ← Book library + reader
+      LearnScreen.jsx         ← ABC, 123, Colors, Shapes, Animals
+      VideoScreen.jsx         ← YouTube KiddieTV (already built)
+    /games
+      ColoringBook.jsx
+      MemoryMatch.jsx
+      BubblePop.jsx
+      RacingGame.jsx
+      DressUp.jsx
+      ABCGame.jsx
+      NumberGame.jsx
+      ColorsGame.jsx
+      ShapesGame.jsx
+      AnimalsGame.jsx
+      PuzzleGame.jsx
+    /components
+      BookCard.jsx
+      BookReader.jsx          ← Full screen reader + TTS
+      GameCard.jsx
+      NavBar.jsx
+      SafeWebView.jsx         ← Wrapper around WebView with safe URLs
+    /hooks
+      useTTS.js               ← expo-speech wrapper
+      useScore.js             ← AsyncStorage score tracker
+    /constants
+      channels.js             ← YouTube channel IDs (already built)
+      deeplinks.js            ← All external URLs
+
+════════════════════════════════════════
+PHASE 4 — BUILD EACH GAME
+════════════════════════════════════════
+
+Build every game listed below from scratch using React Native + open-source assets.
+Each game must have:
+  ✓ Colorful, large-touch UI optimized for 5-year-old fingers
+  ✓ Sound effect on correct answer (expo-av, CC0 sounds from freesound.org)
+  ✓ Celebration animation on win (Lottie confetti or emoji burst)
+  ✓ Simple instructions shown as emoji + short text
+  ✓ Back button always visible
+  ✓ Score/stars saved via AsyncStorage
+
+── COLORING BOOK ──────────────────────
+Tech: react-native-svg + color picker
+Logic:
+  - Render SVG animal/scene outlines (use Kenney.nl SVG animals)
+  - Display a palette of 12 bright colors at bottom
+  - Child taps a color, then taps a region → fills with that color
+  - Use SVG fill state stored in useState per region ID
+  - Include 10+ scenes: cat, dog, butterfly, flower, house, fish, star, etc.
+  - "Print / Save" button uses expo-media-library to save PNG
+
+── MEMORY MATCH ────────────────────────
+Tech: React Native FlatList, Animated API
+Logic:
+  - 4x4 grid (16 cards = 8 pairs) of emoji animals/objects
+  - Cards face-down, tap to flip (CSS flip animation via Animated)
+  - Match = cards stay face up + green glow
+  - No match = cards flip back after 1 second
+  - Track moves + time, show star rating at end
+  - Difficulty: Easy (4 pairs), Medium (8), Hard (12)
+
+── BUBBLE POP ──────────────────────────
+Tech: React Native Animated + PanResponder
+Logic:
+  - Bubbles float upward from bottom (Animated.timing loop)
+  - Each bubble has a random emoji inside (animals, fruits, letters)
+  - Child taps bubble → pop animation + sound + score++
+  - Missed bubbles (reach top) → lose a life (3 lives total)
+  - Speed increases every 10 pops
+  - Use CC0 bubble sprite from OpenGameArt or draw with SVG circle
+
+── RACING GAME ─────────────────────────
+Tech: React Native Animated, Kenney Racing Pack assets
+Logic:
+  - Top-down or side-scroll race track (SVG or image background)
+  - Child's car at bottom, tilt left/right using two big arrow buttons
+  - Avoid obstacle cars coming from top
+  - Collect star pickups for bonus points
+  - Speed increases over time
+  - Use Kenney.nl "Racing Pack" CC0 car sprites (PNG)
+
+── DRESS UP ────────────────────────────
+Tech: React Native Image layers + drag-and-drop (gesture handler)
+Logic:
+  - Base character sprite (girl, boy — open-source from OpenGameArt CC0)
+  - Clothing items in scrollable tray at bottom (hats, dresses, shoes, accessories)
+  - Drag items onto character to equip
+  - Layered Image components (zIndex) show outfit on character
+  - "Save Look" button screenshots and saves to gallery
+  - 20+ clothing items minimum
+
+── ABC LEARNING GAME ───────────────────
+Tech: React Native + expo-speech
+Logic:
+  - Show one large letter (A-Z) at a time, uppercase + lowercase
+  - Animated letter bounces in
+  - "Hear it" button: expo-speech says the letter name + a word ("A is for Apple 🍎")
+  - Trace the letter: Show dotted letter path, child traces with finger (PanResponder)
+  - Quiz mode: Show 4 letters, hear a sound, tap the right one
+  - Celebrate correct answers with confetti Lottie
+
+── NUMBER LEARNING GAME (123s) ─────────
+Tech: React Native + expo-speech
+Logic:
+  - Show numbers 1-20 with matching emoji count (e.g. 3 🐱🐱🐱)
+  - Counting game: tap each animal as it's counted, expo-speech counts aloud
+  - Simple addition: "2 🍎 + 1 🍎 = ?" with 3 answer choices
+  - Number tracing (same as letter tracing above)
+  - Match number to quantity (drag number to matching group of objects)
+
+── COLORS GAME ─────────────────────────
+Tech: React Native
+Logic:
+  - Show a colored shape and say its color (expo-speech)
+  - Quiz: "Tap the RED one!" → 4 colored shapes, tap correct
+  - Color mixing: "Red + Blue = ?" with animation showing mix
+  - Find the color: Scene with multiple objects, "Find something YELLOW"
+  - 12 colors: red, blue, yellow, green, orange, purple, pink, white, black, brown, gray, turquoise
+
+── SHAPES GAME ─────────────────────────
+Tech: react-native-svg + expo-speech
+Logic:
+  - Show shapes with name + sound: circle, square, triangle, rectangle, star, heart, diamond, oval
+  - Shape sorter: Drag shapes into matching holes (PanResponder + collision detection)
+  - Draw the shape: Child traces dotted shape outline with finger
+  - Find the shape: "Tap all the CIRCLES in the scene"
+  - Build a picture from shapes (house = square + triangle, etc.)
+
+── ANIMALS GAME ────────────────────────
+Tech: React Native + expo-speech + expo-av
+Logic:
+  - Flash card style: show animal image (Kenney Animal Pack CC0) + name
+  - "Hear the sound" button plays CC0 animal sound from freesound.org
+  - Quiz: "Which one says MOO?" → 4 animal images, tap the cow
+  - Habitat sort: Drag animals to Ocean / Jungle / Farm / Sky
+  - Animal facts read aloud via expo-speech ("Elephants are the biggest land animals!")
+  - 20+ animals minimum
+
+── PUZZLE GAME ─────────────────────────
+Tech: React Native + PanResponder + react-native-svg
+Logic:
+  - Take a colorful image (from Kenney CC0 pack) and slice into grid pieces
+  - Scramble pieces, child drags each to correct position
+  - Snap-to-grid when piece is close to correct spot
+  - Difficulties: 2x2 (4 pieces), 3x3 (9 pieces), 4x4 (16 pieces)
+  - Ghost outline shows where each piece belongs
+  - Celebrate with animation when puzzle complete
+
+════════════════════════════════════════
+PHASE 5 — BOOKS WITH READ-ALOUD TTS
+════════════════════════════════════════
+
+Build BookReader.jsx:
+
+  1. Fetch book list from Open Library:
+     GET https://openlibrary.org/subjects/childrens_picture_books.json?limit=40
+
+  2. Display grid of book covers (covers.openlibrary.org)
+
+  3. On book tap → full screen reader:
+     - Display page text in large Fredoka One font (size 28+)
+     - Display book cover / illustration
+     - Auto-read aloud using expo-speech:
+         Speech.speak(pageText, { language: 'en', pitch: 1.2, rate: 0.85 })
+     - Highlight each word as it's spoken (use Speech.speak onBoundary callback)
+     - Large NEXT / BACK page buttons (emoji arrows)
+     - Read-aloud toggle button (🔊 / 🔇)
+
+  4. Also add 5 hardcoded classic free books (Project Gutenberg CC0):
+     - "The Tale of Peter Rabbit" — https://www.gutenberg.org/ebooks/14838
+     - "Aesop's Fables for Children" — https://www.gutenberg.org/ebooks/19994
+     - "Mother Goose Rhymes" — https://www.gutenberg.org/ebooks/9025
+     - "Grimm's Fairy Tales" — https://www.gutenberg.org/ebooks/2591 (kids chapters only)
+     - "Alice's Adventures in Wonderland" — https://www.gutenberg.org/ebooks/11
+
+════════════════════════════════════════
+PHASE 6 — DEEPLINK: POKI FOR ALL GAMES
+════════════════════════════════════════
+
+In /src/constants/deeplinks.js, define:
+
+  export const DEEPLINKS = {
+    // Main Poki kids hub
+    poki_kids:    'https://poki.com/en/g/kids',
+    poki_girls:   'https://poki.com/en/g/girls',
+    poki_puzzles: 'https://poki.com/en/g/puzzle',
+    poki_racing:  'https://poki.com/en/g/car',
+    poki_dress:   'https://poki.com/en/g/dress-up',
+    poki_memory:  'https://poki.com/en/g/memory',
+    poki_coloring:'https://poki.com/en/g/drawing-coloring',
+    poki_animals: 'https://poki.com/en/g/animals',
+    poki_edu:     'https://poki.com/en/g/educational',
+
+    // CrazyGames fallback
+    crazy_kids:   'https://www.crazygames.com/c/kids',
+
+    // Scratch embeds (load in SafeWebView)
+    scratch_home: 'https://scratch.mit.edu/explore/projects/games/?q=preschool',
+  }
+
+In every GameCard.jsx, add a "More Games Like This 🎮" button:
+
+  import * as Linking from 'expo-linking';
+  import { DEEPLINKS } from '../constants/deeplinks';
+
+  // Map each game type to its Poki deep link
+  const GAME_POKI_MAP = {
+    coloring:  DEEPLINKS.poki_coloring,
+    memory:    DEEPLINKS.poki_memory,
+    bubble:    DEEPLINKS.poki_kids,
+    racing:    DEEPLINKS.poki_racing,
+    dressup:   DEEPLINKS.poki_dress,
+    abc:       DEEPLINKS.poki_edu,
+    numbers:   DEEPLINKS.poki_edu,
+    colors:    DEEPLINKS.poki_edu,
+    shapes:    DEEPLINKS.poki_edu,
+    animals:   DEEPLINKS.poki_animals,
+    puzzle:    DEEPLINKS.poki_puzzles,
+  }
+
+  // Button in each game screen:
+  <TouchableOpacity onPress={() => Linking.openURL(GAME_POKI_MAP[gameType])}>
+    <Text>🎮 More Games on Poki!</Text>
+  </TouchableOpacity>
+
+════════════════════════════════════════
+PHASE 7 — HOME SCREEN LAYOUT
+════════════════════════════════════════
+
+Build HomeScreen.jsx as a colorful hub with these sections:
+
+  Row 1 — Big feature buttons:
+    📺 Watch Videos  |  📚 Read Books  |  🎮 Play Games
+
+  Row 2 — Learning tiles (3 per row):
+    🔤 ABCs  |  🔢 123s  |  🎨 Colors
+    🔷 Shapes  |  🐘 Animals  |  🧩 Puzzles
+
+  Row 3 — Fun games tiles (3 per row):
+    🖍️ Color  |  🃏 Memory  |  🫧 Bubbles
+    🏎️ Racing  |  👗 Dress Up  |  🎮 Poki Games
+
+  Row 4 — Books shelf:
+    Horizontal scroll of book covers from Open Library API
+
+Design rules:
+  - Pastel gradient background (pink → purple → sky blue)
+  - Fredoka One font throughout
+  - Each tile is 120x120px with rounded corners (radius 24)
+  - Tap tile → gentle scale bounce animation (react-native-reanimated)
+  - Floating star particles in background (Animated)
+  - Bottom nav bar: 🏠 Home | 🎮 Games | 📚 Books | 📺 Videos | ⚙️ Settings
+
+════════════════════════════════════════
+PHASE 8 — SAFETY & PARENTAL CONTROLS
+════════════════════════════════════════
+
+Build a Settings screen with PIN-locked parental controls:
+
+  SafeWebView.jsx rules (apply to ALL WebView instances):
+    - Whitelist ONLY these domains:
+        poki.com, scratch.mit.edu, educandy.com,
+        youtube.com, openlibrary.org, gutenberg.org
+    - Block all navigation away from whitelisted domains
+    - Intercept and block any URL not in whitelist
+
+  Parental Controls (PIN: 4-digit, stored in AsyncStorage encrypted):
+    - Set daily time limit (30min / 1hr / 2hr / unlimited)
+    - Toggle categories on/off (Videos, Games, Books)
+    - View play history log (what was played + duration)
+    - Set allowed age range (3-4 / 4-5 / 5-6 / 6-7)
+
+════════════════════════════════════════
+PHASE 9 — FINAL CHECKLIST
+════════════════════════════════════════
+
+Before completing, verify:
+  ✓ All games playable offline (no internet required for built-in games)
+  ✓ All external links (Poki, Scratch) open in-app WebView or system browser
+  ✓ expo-speech TTS works for books AND learning games
+  ✓ All CC0/open-source asset licenses documented in /LICENSES.md
+  ✓ safeSearch: strict on ALL YouTube API calls
+  ✓ No adult content domains accessible via WebView
+  ✓ App works on iPhone SE screen size (smallest supported)
+  ✓ All touch targets minimum 48x48px (WCAG AA for kids)
+  ✓ Score/progress saved per child profile (AsyncStorage)
+  ✓ Parental PIN required to exit kids mode or change settings
+
+════════════════════════════════════════
+OUTPUT EXPECTED:
+════════════════════════════════════════
+
+Deliver:
+  1. Full working source code for all screens and games
+  2. /LICENSES.md listing all open-source assets used
+  3. /README.md with setup instructions
+  4. All package.json dependencies listed
+  5. Instructions to run: npx expo start
+
+Do not use placeholder code. Every game must be fully functional.
+Use only open-source, CC0, or free-tier resources throughout.
+```
+
+---
+
+## 🗺️ What This Prompt Covers
+
+| Phase | What Gets Built |
+|---|---|
+| 1 | Project setup + all dependencies installed |
+| 2 | All open-source asset sources (Kenney, OpenGameArt, Freesound) |
+| 3 | Full folder/file structure |
+| 4 | 11 games built from scratch |
+| 5 | Book library + word-highlighted read-aloud TTS |
+| 6 | Poki deep links mapped to every game type |
+| 7 | Home screen layout with all sections |
+| 8 | Parental controls + domain whitelist |
+| 9 | Final QA checklist |
+
