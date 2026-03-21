@@ -122,14 +122,13 @@ async function tusUpload(file, videoId, onProgress) {
 
   let location = createRes.headers.get('Location');
   if (!location) throw new Error('TUS: no Location header returned');
-  // Bunny may return a relative path — resolve it
   if (location.startsWith('/')) location = `${STREAM_BASE}${location}`;
 
-  // Resume: fetch current server offset in case we're retrying a previous session
+  // Resume: fetch current server offset
   let offset = await getServerOffset(location, authHeaders);
   if (onProgress && offset > 0) onProgress(Math.min(99, Math.round((offset / fileSize) * 100)));
 
-  // Upload file in 5 MB chunks with retry
+  // Upload in chunks using XHR (reliable Content-Length with Blob bodies)
   while (offset < fileSize) {
     const end = Math.min(offset + CHUNK_SIZE, fileSize);
 
@@ -144,30 +143,20 @@ async function tusUpload(file, videoId, onProgress) {
 
       try {
         const chunk = file.slice(offset, Math.min(offset + CHUNK_SIZE, fileSize));
+        const result = await xhrPatch(location, chunk, offset, authHeaders);
 
-        const patchRes = await fetch(location, {
-          method: 'PATCH',
-          headers: {
-            'Tus-Resumable':  '1.0.0',
-            'Upload-Offset':  String(offset),
-            'Content-Type':   'application/offset+octet-stream',
-            ...authHeaders,
-          },
-          body: chunk,
-        });
-
-        if (patchRes.status === 409) {
+        if (result.status === 409) {
           offset = await getServerOffset(location, authHeaders);
           success = true;
           break;
         }
 
-        if (!patchRes.ok) {
-          lastErr = new Error(`HTTP ${patchRes.status} at offset ${offset}`);
+        if (result.status < 200 || result.status >= 300) {
+          lastErr = new Error(`HTTP ${result.status} at offset ${offset}`);
           continue;
         }
 
-        offset = parseInt(patchRes.headers.get('Upload-Offset') || String(end), 10);
+        offset = parseInt(result.uploadOffset || String(end), 10);
         success = true;
         break;
       } catch (e) {
@@ -180,6 +169,31 @@ async function tusUpload(file, videoId, onProgress) {
   }
 
   if (onProgress) onProgress(100);
+}
+
+/**
+ * TUS PATCH via XMLHttpRequest — sets Content-Length correctly for Blob bodies
+ * and avoids chunked transfer encoding that triggers 413 on CDN gateways.
+ */
+function xhrPatch(url, blob, offset, authHeaders) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PATCH', url, true);
+    xhr.setRequestHeader('Tus-Resumable', '1.0.0');
+    xhr.setRequestHeader('Upload-Offset', String(offset));
+    xhr.setRequestHeader('Content-Type', 'application/offset+octet-stream');
+    for (const [k, v] of Object.entries(authHeaders)) {
+      xhr.setRequestHeader(k, v);
+    }
+    xhr.onload = () => resolve({
+      status: xhr.status,
+      uploadOffset: xhr.getResponseHeader('Upload-Offset'),
+    });
+    xhr.onerror = () => reject(new Error('Network error during chunk upload'));
+    xhr.ontimeout = () => reject(new Error('Chunk upload timed out'));
+    xhr.timeout = 120000;
+    xhr.send(blob);
+  });
 }
 
 async function getServerOffset(location, authHeaders = {}) {
