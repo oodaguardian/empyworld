@@ -85,12 +85,14 @@ export default function MovieUpload() {
   const [title, setTitle] = useState('');
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [uploadInfo, setUploadInfo] = useState({ speed: '', eta: '' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [movies, setMovies] = useState([]);
   const [loadingMovies, setLoadingMovies] = useState(false);
   const [drag, setDrag] = useState(false);
   const fileRef = useRef();
+  const uploadStart = useRef(0);
 
   const loadMovies = useCallback(async () => {
     setLoadingMovies(true);
@@ -135,9 +137,26 @@ export default function MovieUpload() {
     setSuccess('');
     setUploading(true);
     setProgress(0);
+    setUploadInfo({ speed: '', eta: '' });
+    uploadStart.current = Date.now();
+
+    const trackProgress = (pct) => {
+      setProgress(pct);
+      if (pct > 0 && pct < 100) {
+        const elapsed = (Date.now() - uploadStart.current) / 1000;
+        const bytesUploaded = (pct / 100) * file.size;
+        const speedBps = bytesUploaded / elapsed;
+        const bytesLeft = file.size - bytesUploaded;
+        const etaSec = speedBps > 0 ? bytesLeft / speedBps : 0;
+        setUploadInfo({
+          speed: speedBps > 1024 ** 2 ? `${(speedBps / 1024 ** 2).toFixed(1)} MB/s` : `${(speedBps / 1024).toFixed(0)} KB/s`,
+          eta: etaSec > 60 ? `${Math.ceil(etaSec / 60)}m left` : `${Math.ceil(etaSec)}s left`,
+        });
+      }
+    };
 
     try {
-      const videoId = await uploadMovie(file, title.trim(), setProgress);
+      const videoId = await uploadMovie(file, title.trim(), trackProgress);
 
       // Wait briefly for Bunny to process the thumbnail
       await new Promise(r => setTimeout(r, 2000));
@@ -267,7 +286,11 @@ export default function MovieUpload() {
             >
               <div className="flex justify-between text-xs font-display text-white/60 mb-1">
                 <span>Uploading to Bunny CDN…</span>
-                <span>{progress}%</span>
+                <span className="flex gap-3">
+                  {uploadInfo.speed && <span>{uploadInfo.speed}</span>}
+                  {uploadInfo.eta && <span>{uploadInfo.eta}</span>}
+                  <span>{progress}%</span>
+                </span>
               </div>
               <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
                 <motion.div

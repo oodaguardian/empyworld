@@ -16,7 +16,9 @@ const STREAM_API_KEY = import.meta.env.VITE_BUNNY_STREAM_API_KEY;
 const CDN_HOSTNAME  = import.meta.env.VITE_BUNNY_CDN_HOSTNAME;
 const EDGE_API_URL  = import.meta.env.VITE_BUNNY_EDGE_API_URL;
 const STREAM_BASE   = 'https://video.bunnycdn.com';
-const CHUNK_SIZE    = 50 * 1024 * 1024; // 50 MB per TUS chunk
+const CHUNK_SIZE    = 5 * 1024 * 1024;  // 5 MB per TUS chunk (Bunny rejects >10 MB)
+const MAX_RETRIES   = 4;
+const RETRY_DELAY   = [1000, 2000, 4000, 8000]; // exponential backoff ms
 
 // ─── URL helpers ────────────────────────────────────────────────────────────
 
@@ -95,53 +97,102 @@ async function tusUpload(file, videoId, onProgress) {
   const expire   = Math.floor(Date.now() / 1000) + 7200; // 2 hr expiry
   const sig      = await sha256(`${LIBRARY_ID}${STREAM_API_KEY}${expire}${videoId}`);
 
+  const authHeaders = {
+    'AuthorizationSignature': sig,
+    'AuthorizationExpire':    String(expire),
+    'VideoId':                videoId,
+    'LibraryId':              String(LIBRARY_ID),
+  };
+
   // TUS creation: POST to get an upload Location URL
   const createRes = await fetch(`${STREAM_BASE}/tusupload`, {
     method: 'POST',
     headers: {
-      'Tus-Resumable':        '1.0.0',
-      'Upload-Length':        String(fileSize),
-      'Content-Type':         'application/offset+octet-stream',
-      'AuthorizationSignature': sig,
-      'AuthorizationExpire':  String(expire),
-      'VideoId':              videoId,
-      'LibraryId':            String(LIBRARY_ID),
+      'Tus-Resumable':  '1.0.0',
+      'Upload-Length':  String(fileSize),
+      'Upload-Metadata': `filetype ${btoa(file.type || 'video/mp4')},title ${btoa(videoId)}`,
+      ...authHeaders,
     },
   });
 
   if (createRes.status !== 201 && !createRes.ok) {
-    throw new Error(`TUS create failed: ${createRes.status}`);
+    const body = await createRes.text().catch(() => '');
+    throw new Error(`TUS create failed: ${createRes.status} ${body}`);
   }
 
-  const location = createRes.headers.get('Location');
+  let location = createRes.headers.get('Location');
   if (!location) throw new Error('TUS: no Location header returned');
+  // Bunny may return a relative path — resolve it
+  if (location.startsWith('/')) location = `${STREAM_BASE}${location}`;
 
-  // Upload file in 50 MB chunks
-  let offset = 0;
+  // Resume: fetch current server offset in case we're retrying a previous session
+  let offset = await getServerOffset(location, authHeaders);
+  if (onProgress && offset > 0) onProgress(Math.min(99, Math.round((offset / fileSize) * 100)));
+
+  // Upload file in 5 MB chunks with retry
   while (offset < fileSize) {
-    const end   = Math.min(offset + CHUNK_SIZE, fileSize);
-    const chunk = file.slice(offset, end);
+    const end = Math.min(offset + CHUNK_SIZE, fileSize);
 
-    const patchRes = await fetch(location, {
-      method: 'PATCH',
-      headers: {
-        'Tus-Resumable':  '1.0.0',
-        'Upload-Offset':  String(offset),
-        'Content-Type':   'application/offset+octet-stream',
-        'Content-Length': String(chunk.size),
-      },
-      body: chunk,
-    });
+    let success = false;
+    let lastErr;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        await new Promise(r => setTimeout(r, RETRY_DELAY[attempt - 1] ?? 8000));
+        try { offset = await getServerOffset(location, authHeaders); } catch {}
+        if (offset >= end) { success = true; break; }
+      }
 
-    if (!patchRes.ok) {
-      throw new Error(`TUS chunk upload failed at offset ${offset}: ${patchRes.status}`);
+      try {
+        const chunk = file.slice(offset, Math.min(offset + CHUNK_SIZE, fileSize));
+
+        const patchRes = await fetch(location, {
+          method: 'PATCH',
+          headers: {
+            'Tus-Resumable':  '1.0.0',
+            'Upload-Offset':  String(offset),
+            'Content-Type':   'application/offset+octet-stream',
+            ...authHeaders,
+          },
+          body: chunk,
+        });
+
+        if (patchRes.status === 409) {
+          offset = await getServerOffset(location, authHeaders);
+          success = true;
+          break;
+        }
+
+        if (!patchRes.ok) {
+          lastErr = new Error(`HTTP ${patchRes.status} at offset ${offset}`);
+          continue;
+        }
+
+        offset = parseInt(patchRes.headers.get('Upload-Offset') || String(end), 10);
+        success = true;
+        break;
+      } catch (e) {
+        lastErr = e;
+      }
     }
 
-    offset = parseInt(patchRes.headers.get('Upload-Offset') || String(end), 10);
+    if (!success) throw new Error(`Upload failed after ${MAX_RETRIES} retries: ${lastErr?.message}`);
     if (onProgress) onProgress(Math.min(99, Math.round((offset / fileSize) * 100)));
   }
 
   if (onProgress) onProgress(100);
+}
+
+async function getServerOffset(location, authHeaders = {}) {
+  try {
+    const r = await fetch(location, {
+      method: 'HEAD',
+      headers: { 'Tus-Resumable': '1.0.0', ...authHeaders },
+    });
+    const val = r.headers.get('Upload-Offset');
+    return val ? parseInt(val, 10) : 0;
+  } catch {
+    return 0;
+  }
 }
 
 async function sha256(message) {
