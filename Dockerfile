@@ -1,17 +1,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Empy TV — Multi-stage Docker build
 #
-# Stage 1: Build the Vite/React app (env vars baked in at build time)
-# Stage 2: Serve with nginx (lightweight, no Node.js in production)
-#
-# Build command (fill in your actual values):
-#   docker build \
-#     --build-arg VITE_YOUTUBE_API_KEY=<key> \
-#     --build-arg VITE_BUNNY_STORAGE_ZONE=empy-movies \
-#     --build-arg VITE_BUNNY_STORAGE_HOST=storage.bunnycdn.com \
-#     --build-arg VITE_BUNNY_STORAGE_PASSWORD=<password> \
-#     --build-arg VITE_BUNNY_MOVIES_CDN=empy-movies-cdn.b-cdn.net \
-#     -t yourdockerhubuser/empy-tv:latest .
+# Stage 1: Build the Vite/React app
+# Stage 2: Serve with nginx + reverse proxy for Bunny Storage API
 # ─────────────────────────────────────────────────────────────────────────────
 
 FROM node:20-alpine AS builder
@@ -25,32 +16,33 @@ RUN npm ci --prefer-offline
 # Copy source
 COPY . .
 
-# Declare build-time env vars (VITE_ prefix = available in browser bundle)
+# Build-time env vars for the client bundle (only CDN + YouTube key)
 ARG VITE_YOUTUBE_API_KEY
-ARG VITE_BUNNY_STORAGE_ZONE
-ARG VITE_BUNNY_STORAGE_HOST
-ARG VITE_BUNNY_STORAGE_PASSWORD
 ARG VITE_BUNNY_MOVIES_CDN
 
-# Expose them to Vite build
 ENV VITE_YOUTUBE_API_KEY=$VITE_YOUTUBE_API_KEY
-ENV VITE_BUNNY_STORAGE_ZONE=$VITE_BUNNY_STORAGE_ZONE
-ENV VITE_BUNNY_STORAGE_HOST=$VITE_BUNNY_STORAGE_HOST
-ENV VITE_BUNNY_STORAGE_PASSWORD=$VITE_BUNNY_STORAGE_PASSWORD
 ENV VITE_BUNNY_MOVIES_CDN=$VITE_BUNNY_MOVIES_CDN
 
 RUN npm run build
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Stage 2: Serve with nginx
+# Stage 2: Serve with nginx + Bunny Storage proxy
 # ─────────────────────────────────────────────────────────────────────────────
 FROM nginx:1.27-alpine
+
+# Storage zone credentials (injected into nginx.conf, never in client JS)
+ARG BUNNY_STORAGE_ZONE=empy-movies
+ARG BUNNY_STORAGE_HOST=storage.bunnycdn.com
+ARG BUNNY_STORAGE_PASSWORD
 
 # Copy built React app
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy nginx SPA config
+# Copy nginx template and inject storage credentials
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+RUN sed -i "s|__BUNNY_ZONE__|${BUNNY_STORAGE_ZONE}|g" /etc/nginx/conf.d/default.conf && \
+    sed -i "s|__BUNNY_HOST__|${BUNNY_STORAGE_HOST}|g" /etc/nginx/conf.d/default.conf && \
+    sed -i "s|__BUNNY_PASS__|${BUNNY_STORAGE_PASSWORD}|g" /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
