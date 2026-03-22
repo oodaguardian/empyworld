@@ -19,35 +19,54 @@ const MOVIES_DIR = 'movies';
 // ─── URL helpers ────────────────────────────────────────────────────────────
 
 export function getVideoUrl(filename) {
-  return `https://${CDN_HOST}/${MOVIES_DIR}/${encodeURIComponent(filename)}`;
+  // filename may already include the movies/ prefix from fetchMovies
+  const path = filename.startsWith(`${MOVIES_DIR}/`) ? filename : `${MOVIES_DIR}/${filename}`;
+  return `https://${CDN_HOST}/${path.split('/').map(encodeURIComponent).join('/')}`;
 }
 
 // ─── List movies from Storage Zone (via proxy) ──────────────────────────────
 
 export async function fetchMovies() {
-  try {
-    const res = await fetch(`/api/bunny/${MOVIES_DIR}/`, {
-      headers: { Accept: 'application/json' },
-    });
-    if (!res.ok) return [];
-    const contentType = (res.headers.get('content-type') || '').toLowerCase();
-    if (!contentType.includes('application/json')) {
-      return [];
-    }
-    const files = await res.json();
-    const videoExts = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'];
-    return files
+  const videoExts = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'];
+
+  const parseFiles = (files, pathPrefix = '') =>
+    files
       .filter(f => !f.IsDirectory && videoExts.some(ext => f.ObjectName.toLowerCase().endsWith(ext)))
       .map(f => ({
         id: f.Guid,
-        filename: f.ObjectName,
+        filename: pathPrefix + f.ObjectName,
         title: f.ObjectName.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
         size: f.Length,
         addedAt: f.DateCreated,
       }));
-  } catch {
-    return [];
+
+  // Try the movies/ subdirectory first, then fall back to storage zone root
+  for (const dir of [`${MOVIES_DIR}/`, '']) {
+    try {
+      const res = await fetch(`/api/bunny/${dir}`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (!res.ok) {
+        console.warn(`[fetchMovies] /api/bunny/${dir} → HTTP ${res.status}`);
+        continue;
+      }
+      const ct = (res.headers.get('content-type') || '').toLowerCase();
+      if (!ct.includes('application/json')) {
+        console.warn(`[fetchMovies] /api/bunny/${dir} returned non-JSON:`, ct);
+        continue;
+      }
+      const items = await res.json();
+      const movies = parseFiles(items, dir ? `${MOVIES_DIR}/` : '');
+      if (movies.length > 0) {
+        console.log(`[fetchMovies] Found ${movies.length} movie(s) in /${dir || '(root)'}`);
+        return movies;
+      }
+    } catch (err) {
+      console.error(`[fetchMovies] Error listing /api/bunny/${dir}:`, err);
+    }
   }
+  console.warn('[fetchMovies] No movies found in any directory');
+  return [];
 }
 
 // ─── Upload via PUT (XHR through proxy for progress) ────────────────────────
