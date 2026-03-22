@@ -33,7 +33,7 @@ FROM nginx:1.27-alpine
 # Storage zone credentials (injected into nginx.conf, never in client JS)
 ARG BUNNY_STORAGE_ZONE=empy-movies
 ARG BUNNY_STORAGE_HOST=storage.bunnycdn.com
-ARG BUNNY_STORAGE_PASSWORD
+ARG BUNNY_STORAGE_PASSWORD=96aacac3-b651-40c8-9cbc92c3b3d0-c79a-457e
 
 # Copy built React app
 COPY --from=builder /app/dist /usr/share/nginx/html

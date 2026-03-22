@@ -3,7 +3,6 @@ dist
 .git
 .gitignore
 *.log
-.env*
 bunny-edge
 scripts
 README*
