@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CHANNELS, fetchVideos } from '../services/youtube';
 import VideoPlayerModal from './VideoPlayerModal';
@@ -118,6 +118,9 @@ export default function VideoCenter() {
 
   const { isListening, status: voiceStatus, transcript, toggle: toggleVoice, supported: voiceSupported } = useVoiceSearch();
 
+  // Debounce timer for typed searches — prevents rapid-fire API calls
+  const searchTimerRef = useRef(null);
+
   const loadVideos = useCallback(async (channel, query = null, creator = null) => {
     setLoading(true);
     setError(null);
@@ -147,9 +150,23 @@ export default function VideoCenter() {
   const handleSearch = useCallback(() => {
     const q = searchQuery.trim();
     if (!q) return;
+    clearTimeout(searchTimerRef.current);
     setActiveCreator(null);
     loadVideos(activeChannel, q);
   }, [searchQuery, activeChannel, loadVideos]);
+
+  // Debounced live-search as user types (800ms delay)
+  const handleSearchInputChange = useCallback((value) => {
+    setSearchQuery(value);
+    clearTimeout(searchTimerRef.current);
+    const q = value.trim();
+    if (q.length >= 3) {
+      searchTimerRef.current = setTimeout(() => {
+        setActiveCreator(null);
+        loadVideos(activeChannel, q);
+      }, 800);
+    }
+  }, [activeChannel, loadVideos]);
 
   const handleChannelClick = useCallback((ch) => {
     setActiveChannel(ch);
@@ -185,7 +202,7 @@ export default function VideoCenter() {
             ref={inputRef}
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchInputChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="Search for videos... 🔍"
             className="flex-1 bg-transparent border-none outline-none text-white font-body text-xs sm:text-sm font-semibold placeholder-purple-300/50 min-w-0"
@@ -292,7 +309,7 @@ export default function VideoCenter() {
               ? 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5'
               : 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3'
           }`}>
-            {Array.from({ length: isShorts ? 8 : 6 }).map((_, i) => (
+            {Array.from({ length: isShorts ? 15 : 12 }).map((_, i) => (
               <SkeletonCard key={i} isShort={isShorts} />
             ))}
           </div>

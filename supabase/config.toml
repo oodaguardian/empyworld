@@ -1,0 +1,38 @@
+# A string used to distinguish different Supabase projects on the same host.
+# Defaults to the working directory name when running `supabase init`.
+project_id = "empyworld"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+# File size limit for uploads (voice messages)
+file_size_limit = "10MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["https://empy.my", "https://dxd.empy.my"]
+jwt_expiry = 3600
+enable_signup = false
+
+[functions.send-push]
+verify_jwt = false

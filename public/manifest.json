@@ -1,0 +1,15 @@
+{
+  "name": "Empy TV 🌸",
+  "short_name": "Empy TV",
+  "description": "Empy's magical world of games, movies, and messages to Dad",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#160020",
+  "theme_color": "#FF2D8B",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/empxvc.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/empxvc.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "categories": ["entertainment", "kids"]
+}

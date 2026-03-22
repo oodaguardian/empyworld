@@ -11,15 +11,42 @@ const SAFE_PARAMS = {
 };
 
 // ══════════════════════════════════════════════
-//  QUOTA-AWARE CACHE
-//  search.list = 100 units per call, 10,000 units/day free
-//  Cache results in localStorage for 6 hours so:
-//    - Page refreshes → 0 units
-//    - Same channel during the day → 0 units
-//    - Only fresh channel switches burn quota
+//  QUOTA-AWARE CACHE  (Production key)
+//  search.list = 100 units per call, 10,000 units/day
+//  Aggressive caching strategy:
+//    - 24-hour localStorage TTL (channels + searches)
+//    - In-memory dedup for in-flight requests
+//    - Daily quota tracker to avoid 403s
 // ══════════════════════════════════════════════
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
-const CACHE_PREFIX = 'yt_cache_';
+const CACHE_TTL_MS  = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_PREFIX  = 'yt_cache_';
+const QUOTA_KEY     = 'yt_quota';
+const DAILY_LIMIT   = 10_000;
+const COST_PER_SEARCH = 100;
+
+// --- In-flight dedup: if the same key is already fetching, reuse the promise ---
+const _inflight = new Map();
+
+// --- Quota tracker: resets each calendar day ---
+function _getQuota() {
+  try {
+    const raw = localStorage.getItem(QUOTA_KEY);
+    if (!raw) return { day: '', used: 0 };
+    return JSON.parse(raw);
+  } catch { return { day: '', used: 0 }; }
+}
+function _bumpQuota() {
+  const today = new Date().toISOString().slice(0, 10);
+  const q = _getQuota();
+  const used = q.day === today ? q.used + COST_PER_SEARCH : COST_PER_SEARCH;
+  try { localStorage.setItem(QUOTA_KEY, JSON.stringify({ day: today, used })); } catch {}
+  return used;
+}
+function quotaRemaining() {
+  const today = new Date().toISOString().slice(0, 10);
+  const q = _getQuota();
+  return q.day === today ? DAILY_LIMIT - q.used : DAILY_LIMIT;
+}
 
 function cacheGet(key) {
   try {
@@ -34,7 +61,23 @@ function cacheGet(key) {
 function cacheSet(key, data) {
   try {
     localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ ts: Date.now(), data }));
-  } catch { /* storage full — ignore */ }
+  } catch {
+    // Storage full — evict oldest yt_cache entries and retry once
+    try {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k?.startsWith(CACHE_PREFIX)) {
+          const { ts } = JSON.parse(localStorage.getItem(k));
+          keys.push({ k, ts });
+        }
+      }
+      keys.sort((a, b) => a.ts - b.ts);
+      // Remove oldest quarter
+      keys.slice(0, Math.max(1, Math.ceil(keys.length / 4))).forEach(({ k }) => localStorage.removeItem(k));
+      localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ ts: Date.now(), data }));
+    } catch { /* truly full — give up */ }
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -275,13 +318,12 @@ export async function fetchVideos(channel, searchQuery = null, { creator = null 
 
   const params = new URLSearchParams({
     part: 'snippet',
-    maxResults: '20',
+    maxResults: '50',          // Production key — show lots of content
     key: API_KEY,
     ...SAFE_PARAMS,
   });
 
   if (searchQuery) {
-    // User typed a search — never cache searches (they're unique)
     params.set('q', searchQuery + ' kids safe');
   } else if (creator) {
     if (creator.isSearch || !creator.channelId) {
@@ -305,37 +347,54 @@ export async function fetchVideos(channel, searchQuery = null, { creator = null 
     params.set('channelId', channel.channelId);
   }
 
-  // Cache key = channel id + creator id (not for live searches)
+  // Cache key — now includes user searches (kids repeat the same queries)
   const cacheKey = searchQuery
-    ? null
+    ? `search_${searchQuery.toLowerCase().trim()}`
     : `${channel.id}_${creator?.channelId ?? creator?.name ?? 'default'}`;
 
-  if (cacheKey) {
-    const cached = cacheGet(cacheKey);
-    if (cached) return cached;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  // Dedup in-flight requests — avoids storming the API on rapid re-renders
+  if (_inflight.has(cacheKey)) return _inflight.get(cacheKey);
+
+  // Guard quota
+  if (quotaRemaining() < COST_PER_SEARCH) {
+    throw new Error('Daily YouTube quota nearly exhausted — results served from cache only. Try again tomorrow!');
   }
 
-  const url = `${BASE}/search?${params}`;
-  const res = await fetch(url);
-  const data = await res.json();
+  const promise = (async () => {
+    try {
+      const url = `${BASE}/search?${params}`;
+      const res = await fetch(url);
+      const data = await res.json();
 
-  if (data.error) {
-    throw new Error(data.error.message);
-  }
+      if (data.error) {
+        throw new Error(data.error.message);
+      }
 
-  const items = (data.items || []).map((item) => ({
-    id: item.id?.videoId || item.id,
-    title: item.snippet?.title || 'Video',
-    thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '',
-    channel: item.snippet?.channelTitle || '',
-    publishedAt: item.snippet?.publishedAt
-      ? new Date(item.snippet.publishedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-      : '',
-    isShort: channel.isShorts || false,
-  }));
+      _bumpQuota();
 
-  if (cacheKey) cacheSet(cacheKey, items);
-  return items;
+      const items = (data.items || []).map((item) => ({
+        id: item.id?.videoId || item.id,
+        title: item.snippet?.title || 'Video',
+        thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '',
+        channel: item.snippet?.channelTitle || '',
+        publishedAt: item.snippet?.publishedAt
+          ? new Date(item.snippet.publishedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+          : '',
+        isShort: channel.isShorts || false,
+      }));
+
+      cacheSet(cacheKey, items);
+      return items;
+    } finally {
+      _inflight.delete(cacheKey);
+    }
+  })();
+
+  _inflight.set(cacheKey, promise);
+  return promise;
 }
 
 // ══════════════════════════════════════════════
@@ -350,38 +409,55 @@ export async function fetchShorts(query = 'kids cartoon funny') {
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
-  const params = new URLSearchParams({
-    part: 'snippet',
-    maxResults: '20',
-    key: API_KEY,
-    safeSearch: 'strict',
-    videoEmbeddable: 'true',
-    type: 'video',
-    videoDuration: 'short',
-    relevanceLanguage: 'en',
-    regionCode: 'US',
-    q: query + ' #shorts kids',
-  });
+  if (_inflight.has(cacheKey)) return _inflight.get(cacheKey);
 
-  const url = `${BASE}/search?${params}`;
-  const res = await fetch(url);
-  const data = await res.json();
-
-  if (data.error) {
-    throw new Error(data.error.message);
+  if (quotaRemaining() < COST_PER_SEARCH) {
+    throw new Error('Daily YouTube quota nearly exhausted — try again tomorrow!');
   }
 
-  const items = (data.items || []).map((item) => ({
-    id: item.id?.videoId || item.id,
-    title: item.snippet?.title || 'Short',
-    thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '',
-    channel: item.snippet?.channelTitle || '',
-    publishedAt: item.snippet?.publishedAt
-      ? new Date(item.snippet.publishedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-      : '',
-    isShort: true,
-  }));
+  const promise = (async () => {
+    try {
+      const params = new URLSearchParams({
+        part: 'snippet',
+        maxResults: '50',
+        key: API_KEY,
+        safeSearch: 'strict',
+        videoEmbeddable: 'true',
+        type: 'video',
+        videoDuration: 'short',
+        relevanceLanguage: 'en',
+        regionCode: 'US',
+        q: query + ' #shorts kids',
+      });
 
-  cacheSet(cacheKey, items);
-  return items;
+      const url = `${BASE}/search?${params}`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.error) {
+        throw new Error(data.error.message);
+      }
+
+      _bumpQuota();
+
+      const items = (data.items || []).map((item) => ({
+        id: item.id?.videoId || item.id,
+        title: item.snippet?.title || 'Short',
+        thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '',
+        channel: item.snippet?.channelTitle || '',
+        publishedAt: item.snippet?.publishedAt
+          ? new Date(item.snippet.publishedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+          : '',
+        isShort: true,
+      }));
+
+      cacheSet(cacheKey, items);
+      return items;
+    } finally {
+      _inflight.delete(cacheKey);
+    }
+  })();
+
+  _inflight.set(cacheKey, promise);
+  return promise;
 }

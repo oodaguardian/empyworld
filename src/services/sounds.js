@@ -71,3 +71,45 @@ export function playStar() {
 export function playColorFill() {
   playTone(440 + Math.random() * 400, 0.08, 'triangle', 0.15);
 }
+
+// Magical sparkle startup jingle - girly/playful ascending melody
+export function playStartupJingle() {
+  if (!audioCtx) return;
+  ensureCtx();
+
+  // Helper to schedule a playTone call after a delay
+  const schedule = (freq, startTime, duration, type = 'sine', vol = 0.25) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+  };
+
+  const t = audioCtx.currentTime + 0.05;
+  // Sparkling ascending melody: C5 E5 G5 C6 E6 G6 C7
+  const melody = [
+    [523.25, 0.00, 0.18],
+    [659.25, 0.14, 0.18],
+    [783.99, 0.28, 0.18],
+    [1046.5, 0.40, 0.22],
+    [1318.5, 0.52, 0.22],
+    [1567.98, 0.64, 0.20],
+    [2093.0, 0.76, 0.30],
+  ];
+  melody.forEach(([freq, delay, dur]) => schedule(freq, t + delay, dur, 'sine', 0.22));
+
+  // Harmony sparkles (triangle overtones for magical feel)
+  const sparkles = [
+    [1047, 0.10, 0.12],
+    [1319, 0.30, 0.12],
+    [2093, 0.60, 0.16],
+    [2637, 0.78, 0.20],
+  ];
+  sparkles.forEach(([freq, delay, dur]) => schedule(freq, t + delay, dur, 'triangle', 0.10));
+}

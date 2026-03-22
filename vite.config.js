@@ -24,5 +24,17 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    optimizeDeps: {
+      include: [
+        'firebase/app',
+        'firebase/firestore',
+        'firebase/storage',
+        'firebase/messaging',
+        '@zegocloud/zego-uikit-prebuilt',
+      ],
+    },
+    resolve: {
+      conditions: ['browser', 'module', 'import', 'default'],
+    },
   };
 });

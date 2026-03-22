@@ -3,15 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import VideoCenter from './VideoCenter';
 import useGesture from '../hooks/useGesture';
+import empxvcLogo from '../empxvc.png';
 
 const CARDS = [
-  { id: 'learning-games', label: 'Learning Games', icon: '🎓', path: '/learning-games', color: 'from-pink-500 to-purple-600' },
-  { id: 'games', label: 'Games', icon: '🎮', path: '/games', color: 'from-green-400 to-cyan-500' },
-  { id: 'movies', label: 'Movies', icon: '🎬', path: '/movies', color: 'from-red-500 to-orange-500' },
-  { id: 'messages', label: 'Messages to Dad', icon: '💌', path: '/messages-to-dad', color: 'from-yellow-400 to-amber-500' },
-  { id: 'reading', label: 'Reading Center', icon: '📚', path: '/reading-center', color: 'from-blue-400 to-indigo-500' },
-  { id: 'music', label: 'Music', icon: '🎵', path: '/music', color: 'from-fuchsia-500 to-pink-500' },
-  { id: 'blank', label: 'Settings', icon: '⚙️', path: '/settings', color: 'from-gray-500 to-slate-600' },
+  { id: 'learning-games', label: 'Learning Games', icon: '🦄', path: '/learning-games', color: 'from-pink-500 to-purple-600' },
+  { id: 'games', label: 'Games', icon: '🎀', path: '/games', color: 'from-fuchsia-500 to-pink-400' },
+  { id: 'movies', label: 'Movies', icon: '🎭', path: '/movies', color: 'from-purple-500 to-blue-500' },
+  { id: 'messages', label: 'Messages to Dad', icon: '💌', path: '/messages-to-dad', color: 'from-pink-400 to-rose-500' },
+  { id: 'reading', label: 'Reading Center', icon: '🌸', path: '/reading-center', color: 'from-blue-400 to-violet-500' },
+  { id: 'music', label: 'Music', icon: '🎶', path: '/music', color: 'from-fuchsia-400 to-purple-500' },
+  { id: 'settings', label: 'Settings', icon: '✨', path: '/settings', color: 'from-violet-500 to-blue-500' },
 ];
 
 const containerVariants = {
@@ -84,10 +85,27 @@ export default function Dashboard() {
       className="w-full h-full flex flex-col overflow-hidden"
     >
       {/* ===== HEADER ===== */}
-      <header className="flex-shrink-0 flex items-center justify-center py-1.5 sm:py-2 md:py-3 px-2">
+      <header className="flex-shrink-0 flex items-center justify-center gap-3 py-1.5 sm:py-2 md:py-3 px-2">
+        <motion.img
+          src={empxvcLogo}
+          alt="Empy's World"
+          className="logo-shimmer"
+          style={{ height: 'clamp(28px, 5vw, 48px)', width: 'auto', objectFit: 'contain' }}
+          animate={{ y: [0, -4, 0] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+        />
         <h1 className="glitter-text font-display text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl tracking-[0.25em] sm:tracking-[0.3em] text-center whitespace-nowrap">
           E M P Y &apos;s &nbsp; W O R L D
         </h1>
+        <motion.img
+          src={empxvcLogo}
+          alt=""
+          aria-hidden="true"
+          className="logo-shimmer"
+          style={{ height: 'clamp(28px, 5vw, 48px)', width: 'auto', objectFit: 'contain', transform: 'scaleX(-1)' }}
+          animate={{ y: [0, -4, 0] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 1.25 }}
+        />
       </header>
 
       {/* ===== MAIN CONTENT ===== */}
@@ -107,7 +125,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Video Center - center */}
-        <div className="flex-1 min-h-0 rounded-xl overflow-hidden border border-purple-500/20" style={{ background: 'rgba(13,10,30,0.6)' }}>
+        <div className="flex-1 min-h-0 rounded-xl overflow-hidden border border-pink-500/30" style={{ background: 'rgba(22,0,32,0.7)' }}>
           <VideoCenter />
         </div>
 
@@ -140,7 +158,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Center: Video Center */}
-        <div className="min-h-0 rounded-2xl overflow-hidden border border-purple-500/20" style={{ background: 'rgba(13,10,30,0.6)' }}>
+        <div className="min-h-0 rounded-2xl overflow-hidden border border-pink-500/30" style={{ background: 'rgba(22,0,32,0.7)' }}>
           <VideoCenter />
         </div>
 

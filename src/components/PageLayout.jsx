@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import empxvcLogo from '../empxvc.png';
 
 export default function PageLayout({ title, icon, children, bgGradient }) {
   const navigate = useNavigate();
@@ -14,12 +15,16 @@ export default function PageLayout({ title, icon, children, bgGradient }) {
       className={`w-full h-full flex flex-col overflow-hidden ${bgGradient || ''}`}
     >
       {/* Header bar */}
-      <header className="flex-shrink-0 flex items-center gap-3 px-3 sm:px-4 py-2 sm:py-3 border-b border-empy-yellow/20">
+      <header
+        className="flex-shrink-0 flex items-center gap-3 px-3 sm:px-4 py-2 sm:py-3"
+        style={{ borderBottom: '1px solid rgba(255,45,139,0.25)', background: 'rgba(45,0,80,0.4)', backdropFilter: 'blur(10px)' }}
+      >
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           onClick={() => navigate('/')}
-          className="btn btn-circle btn-sm sm:btn-md bg-empy-pink/20 border-empy-pink/40 text-white hover:bg-empy-pink/40"
+          className="btn btn-circle btn-sm sm:btn-md border text-white flex-shrink-0"
+          style={{ background: 'rgba(255,45,139,0.2)', borderColor: 'rgba(255,45,139,0.5)' }}
           aria-label="Go back home"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5">
@@ -34,11 +39,22 @@ export default function PageLayout({ title, icon, children, bgGradient }) {
           </h1>
         </div>
 
+        {/* Logo in center-right area */}
+        <motion.img
+          src={empxvcLogo}
+          alt="Empy's World"
+          className="logo-shimmer flex-shrink-0"
+          style={{ height: 'clamp(22px, 4vw, 36px)', width: 'auto', objectFit: 'contain' }}
+          animate={{ y: [0, -3, 0] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+        />
+
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           onClick={() => navigate('/')}
-          className="btn btn-circle btn-sm sm:btn-md bg-empy-yellow/20 border-empy-yellow/40 text-white hover:bg-empy-yellow/40"
+          className="btn btn-circle btn-sm sm:btn-md border text-white flex-shrink-0"
+          style={{ background: 'rgba(155,48,255,0.2)', borderColor: 'rgba(155,48,255,0.5)' }}
           aria-label="Home"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5">
