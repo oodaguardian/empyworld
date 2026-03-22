@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { uploadMovie, fetchMovies, deleteMovie, getVideoUrl, isBunnyConfigured } from '../services/bunny';
+import { uploadMovie, fetchMovies, deleteMovie } from '../services/bunny';
 import logo from '../emplogo.png';
 
 const UPLOAD_PIN = localStorage.getItem('empyPIN') || '1234';
@@ -127,10 +127,6 @@ export default function MovieUpload() {
   const handleUpload = async () => {
     if (!file || !title.trim()) {
       setError('Please select a file and enter a title.');
-      return;
-    }
-    if (!isBunnyConfigured()) {
-      setError('Bunny is not configured. Check your .env.local settings.');
       return;
     }
     setError('');

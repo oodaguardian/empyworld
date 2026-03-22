@@ -13,7 +13,7 @@
  *   VITE_BUNNY_MOVIES_CDN    — CDN hostname for video playback
  */
 
-const CDN_HOST   = import.meta.env.VITE_BUNNY_MOVIES_CDN;
+const CDN_HOST   = import.meta.env.VITE_BUNNY_MOVIES_CDN || 'empy-movies-cdn.b-cdn.net';
 const MOVIES_DIR = 'movies';
 
 // ─── URL helpers ────────────────────────────────────────────────────────────
@@ -30,6 +30,10 @@ export async function fetchMovies() {
       headers: { Accept: 'application/json' },
     });
     if (!res.ok) return [];
+    const contentType = (res.headers.get('content-type') || '').toLowerCase();
+    if (!contentType.includes('application/json')) {
+      return [];
+    }
     const files = await res.json();
     const videoExts = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'];
     return files
@@ -50,7 +54,7 @@ export async function fetchMovies() {
 
 export async function uploadMovie(file, title, onProgress) {
   const ext = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.')) : '.mp4';
-  const safeName = title.trim().replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '_');
+  const safeName = title.trim().replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '_') || `movie_${Date.now()}`;
   const filename = `${safeName}${ext}`;
   const url = `/api/bunny/${MOVIES_DIR}/${encodeURIComponent(filename)}`;
 
@@ -70,7 +74,12 @@ export async function uploadMovie(file, title, onProgress) {
         if (onProgress) onProgress(100);
         resolve({ filename });
       } else {
-        reject(new Error(`Upload failed: HTTP ${xhr.status} — ${xhr.responseText}`));
+        const body = (xhr.responseText || '').slice(0, 300);
+        if (body.toLowerCase().includes('<!doctype') || body.toLowerCase().includes('<html')) {
+          reject(new Error('Upload endpoint is not active on this deployment. Redeploy the latest container image so /api/bunny proxy is enabled.'));
+          return;
+        }
+        reject(new Error(`Upload failed: HTTP ${xhr.status} — ${body}`));
       }
     };
 
@@ -92,5 +101,5 @@ export async function deleteMovie(filename) {
 // ─── Check if Bunny is configured ─────────────────────────────────────────────
 
 export function isBunnyConfigured() {
-  return !!CDN_HOST;
+  return true;
 }
