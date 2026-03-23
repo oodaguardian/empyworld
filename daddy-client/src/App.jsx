@@ -278,6 +278,9 @@ export default function App() {
     if (action === 'accept' && callId) {
       // Opened fresh from notification tap — go straight into the call
       handleAcceptIncoming(callId, callType || 'video');
+    } else if (action === 'decline' && callId) {
+      // Opened fresh from notification decline — update call and stay idle
+      updateCallStatus(callId, 'declined');
     } else {
       // No URL params — check if there's a ringing call we missed via realtime
       fetchLatestRingingCall(EMPY.id).then((call) => {
@@ -391,7 +394,13 @@ export default function App() {
           handleAcceptIncoming(callId, callType);
         }
       }
-      if (type === 'DECLINE_CALL') handleDeclineIncoming();
+      if (type === 'DECLINE_CALL') {
+        if (incomingCall?.callId) {
+          handleDeclineIncoming();
+        } else if (callId) {
+          await updateCallStatus(callId, 'declined');
+        }
+      }
     };
     window.addEventListener('sw-message', handler);
     return () => window.removeEventListener('sw-message', handler);

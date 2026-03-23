@@ -54,21 +54,14 @@ self.addEventListener('notificationclick', (e) => {
   const action = e.action;
   const data = e.notification.data || {};
   const isAccept = action === 'accept' || (!action && data.type === 'call');
+  const isDecline = action === 'decline';
 
-  if (action === 'decline') {
-    e.waitUntil(
-      clients.matchAll({ type: 'window' }).then((cls) =>
-        cls.forEach((c) => c.postMessage({ type: 'DECLINE_CALL', callId: data.callId }))
-      )
-    );
-    return;
-  }
-
-  // Open / accept — focus existing window or open with call params
+  // Open / action — focus existing window or open with action params
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cls) => {
+      const msgType = isDecline ? 'DECLINE_CALL' : (isAccept ? 'ACCEPT_CALL' : 'OPEN_APP');
       const msg = {
-        type: isAccept ? 'ACCEPT_CALL' : 'OPEN_APP',
+        type: msgType,
         callId: data.callId,
         callType: data.callType,
       };
@@ -76,9 +69,10 @@ self.addEventListener('notificationclick', (e) => {
       if (cls.length > 0) {
         cls[0].focus();
         cls[0].postMessage(msg);
-      } else if (isAccept && data.callId) {
-        // No window open — pass call info via URL so the app can pick it up on load
-        const url = '/?action=accept&callId=' + encodeURIComponent(data.callId) +
+      } else if ((isAccept || isDecline) && data.callId) {
+        // No window open — pass action + call info via URL so the app can pick it up on load
+        const actionParam = isDecline ? 'decline' : 'accept';
+        const url = '/?action=' + actionParam + '&callId=' + encodeURIComponent(data.callId) +
                     '&callType=' + encodeURIComponent(data.callType || 'video');
         clients.openWindow(url);
       } else {
