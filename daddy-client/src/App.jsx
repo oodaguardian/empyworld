@@ -186,6 +186,7 @@ export default function App() {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const messagesEndRef = useRef(null);
+  const missTimeoutRef = useRef(null);
 
   // ── Setup ──────────────────────────────────────────────────────────────────
   useEffect(() => subscribeToMessages(setMessages), []);
@@ -252,11 +253,11 @@ export default function App() {
         'Tap to answer',
         { type: 'call', callType: type, callId: id }
       );
-      const timeout = setTimeout(() => {
+      clearTimeout(missTimeoutRef.current);
+      missTimeoutRef.current = setTimeout(() => {
         updateCallStatus(id, 'missed');
         setCallPhase('idle'); setCurrentCallId(null);
       }, 30000);
-      return () => clearTimeout(timeout);
     } catch (_) {
       setCallPhase('active');
     }
@@ -266,6 +267,7 @@ export default function App() {
   useEffect(() => {
     if (callPhase !== 'ringing' || !currentCallId) return;
     return watchCallStatus(currentCallId, (status) => {
+      clearTimeout(missTimeoutRef.current);
       if (status === 'accepted') setCallPhase('active');
       else if (['declined', 'cancelled', 'ended'].includes(status)) {
         setCallPhase('idle'); setCurrentCallId(null);
@@ -274,6 +276,7 @@ export default function App() {
   }, [callPhase, currentCallId]);
 
   const handleCancelCall = useCallback(async () => {
+    clearTimeout(missTimeoutRef.current);
     if (currentCallId) await updateCallStatus(currentCallId, 'cancelled');
     setCallPhase('idle'); setCurrentCallId(null);
   }, [currentCallId]);
@@ -299,6 +302,7 @@ export default function App() {
   }, [incomingCall]);
 
   const handleCallEnd = useCallback(async () => {
+    clearTimeout(missTimeoutRef.current);
     if (currentCallId) await updateCallStatus(currentCallId, 'ended');
     setCallPhase('idle'); setCurrentCallId(null); setCallType(null);
   }, [currentCallId]);

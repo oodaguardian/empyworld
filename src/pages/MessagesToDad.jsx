@@ -184,13 +184,14 @@ export default function MessagesToDad() {
   const messagesEndRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const missTimeoutRef = useRef(null);
 
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Subscribe to Firestore messages
+  // Subscribe to messages via Supabase
   useEffect(() => {
     const unsub = subscribeToMessages(setMessages);
     return unsub;
@@ -236,12 +237,12 @@ export default function MessagesToDad() {
         { type: 'call', callType: type, callId }
       );
       // After 30s with no answer, mark missed
-      const timeout = setTimeout(() => {
+      clearTimeout(missTimeoutRef.current);
+      missTimeoutRef.current = setTimeout(() => {
         updateCallStatus(callId, 'missed');
         setCallPhase('idle');
         setCurrentCallId(null);
       }, 30000);
-      return () => clearTimeout(timeout);
     } catch (_) {
       // Supabase not configured — still allow local ZegoCloud call for testing
       setCallPhase('active');
@@ -249,6 +250,7 @@ export default function MessagesToDad() {
   }, []);
 
   const handleCancelCall = useCallback(async () => {
+    clearTimeout(missTimeoutRef.current);
     if (currentCallId) await updateCallStatus(currentCallId, 'cancelled');
     setCallPhase('idle');
     setCurrentCallId(null);
@@ -268,16 +270,18 @@ export default function MessagesToDad() {
   }, [incomingCall]);
 
   const handleCallEnd = useCallback(async () => {
+    clearTimeout(missTimeoutRef.current);
     if (currentCallId) await updateCallStatus(currentCallId, 'ended');
     setCallPhase('idle');
     setCurrentCallId(null);
     setCallType(null);
   }, [currentCallId]);
 
-  // When ringing, watch the Firestore call doc for Daddy's response
+  // When ringing, watch Supabase call record for Daddy's response
   useEffect(() => {
     if (callPhase !== 'ringing' || !currentCallId) return;
     return watchCallStatus(currentCallId, (status) => {
+      clearTimeout(missTimeoutRef.current);
       if (status === 'accepted') {
         setCallPhase('active');
       } else if (status === 'declined' || status === 'cancelled' || status === 'ended') {
