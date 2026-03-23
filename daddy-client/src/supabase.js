@@ -108,6 +108,23 @@ export function watchCallStatus(callId, callback) {
   return () => supabase.removeChannel(channel);
 }
 
+export async function fetchCallById(callId) {
+  if (!supabaseReady || !callId) return null;
+  const { data, error } = await supabase.from('calls').select('*').eq('id', callId).single();
+  if (error) return null;
+  return data;
+}
+
+export async function fetchLatestRingingCall(callerId) {
+  if (!supabaseReady) return null;
+  const cutoff = new Date(Date.now() - 60000).toISOString();
+  const { data, error } = await supabase.from('calls').select('*')
+    .eq('caller_id', callerId).eq('status', 'ringing')
+    .gte('created_at', cutoff).order('created_at', { ascending: false }).limit(1).single();
+  if (error) return null;
+  return data;
+}
+
 // â”€â”€â”€ Web Push (VAPID) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function urlBase64ToUint8Array(base64String) {

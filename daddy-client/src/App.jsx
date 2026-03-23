@@ -12,6 +12,8 @@ import {
   watchCallStatus,
   registerPushSubscription,
   sendPushNotification,
+  fetchCallById,
+  fetchLatestRingingCall,
 } from './supabase.js';
 
 // ─────────────── Constants ───────────────────────────────────────────────────
@@ -261,6 +263,31 @@ export default function App() {
   // Register Web Push so Empy can notify us
   useEffect(() => { registerPushSubscription(DADDY.id).then(ok => setPushGranted(ok)).catch(() => {}); }, []);
 
+  // On mount: check URL params (opened from notification) or pending ringing calls
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    const callId = params.get('callId');
+    const callType = params.get('callType');
+
+    // Clean URL params so they don't re-trigger on refresh
+    if (action || callId) {
+      window.history.replaceState({}, '', '/');
+    }
+
+    if (action === 'accept' && callId) {
+      // Opened fresh from notification tap — go straight into the call
+      handleAcceptIncoming(callId, callType || 'video');
+    } else {
+      // No URL params — check if there's a ringing call we missed via realtime
+      fetchLatestRingingCall(EMPY.id).then((call) => {
+        if (call && callPhase === 'idle') {
+          setIncomingCall({ callId: call.id, ...call });
+        }
+      });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Check push permission status
   useEffect(() => {
     if ('Notification' in window) setPushGranted(Notification.permission === 'granted');
@@ -286,14 +313,21 @@ export default function App() {
 
   // SW messages (accept/decline from notification)
   useEffect(() => {
-    const handler = (e) => {
-      const { type } = e.detail || {};
-      if (type === 'ACCEPT_CALL') handleAcceptIncoming();
+    const handler = async (e) => {
+      const { type, callId, callType } = e.detail || {};
+      if (type === 'ACCEPT_CALL') {
+        if (incomingCall?.callId) {
+          handleAcceptIncoming();
+        } else if (callId) {
+          // App was already open but realtime hadn't delivered the call yet — fetch directly
+          handleAcceptIncoming(callId, callType);
+        }
+      }
       if (type === 'DECLINE_CALL') handleDeclineIncoming();
     };
     window.addEventListener('sw-message', handler);
     return () => window.removeEventListener('sw-message', handler);
-  }, [incomingCall]); // eslint-disable-line
+  }, [incomingCall, handleAcceptIncoming, handleDeclineIncoming]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -341,10 +375,12 @@ export default function App() {
     setCallPhase('idle'); setCurrentCallId(null);
   }, [currentCallId]);
 
-  const handleAcceptIncoming = useCallback(async () => {
-    if (incomingCall?.callId) await updateCallStatus(incomingCall.callId, 'accepted');
-    setCallType(incomingCall?.type || 'video');
-    setCurrentCallId(incomingCall?.callId || null);
+  const handleAcceptIncoming = useCallback(async (overrideCallId, overrideCallType) => {
+    const cId = overrideCallId || incomingCall?.callId;
+    const cType = overrideCallType || incomingCall?.type || 'video';
+    if (cId) await updateCallStatus(cId, 'accepted');
+    setCallType(cType);
+    setCurrentCallId(cId || null);
     setIncomingCall(null);
     setCallPhase('active');
   }, [incomingCall]);

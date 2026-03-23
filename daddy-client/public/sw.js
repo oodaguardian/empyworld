@@ -53,21 +53,34 @@ self.addEventListener('notificationclick', (e) => {
   e.notification.close();
   const action = e.action;
   const data = e.notification.data || {};
+  const isAccept = action === 'accept' || (!action && data.type === 'call');
 
   if (action === 'decline') {
-    // Post to all clients to decline the call
-    clients.matchAll({ type: 'window' }).then((cls) =>
-      cls.forEach((c) => c.postMessage({ type: 'DECLINE_CALL', callId: data.callId }))
+    e.waitUntil(
+      clients.matchAll({ type: 'window' }).then((cls) =>
+        cls.forEach((c) => c.postMessage({ type: 'DECLINE_CALL', callId: data.callId }))
+      )
     );
     return;
   }
 
-  // Open / accept — focus or open window
+  // Open / accept — focus existing window or open with call params
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cls) => {
+      const msg = {
+        type: isAccept ? 'ACCEPT_CALL' : 'OPEN_APP',
+        callId: data.callId,
+        callType: data.callType,
+      };
+
       if (cls.length > 0) {
         cls[0].focus();
-        cls[0].postMessage({ type: action === 'accept' ? 'ACCEPT_CALL' : 'OPEN_APP', callId: data.callId });
+        cls[0].postMessage(msg);
+      } else if (isAccept && data.callId) {
+        // No window open — pass call info via URL so the app can pick it up on load
+        const url = '/?action=accept&callId=' + encodeURIComponent(data.callId) +
+                    '&callType=' + encodeURIComponent(data.callType || 'video');
+        clients.openWindow(url);
       } else {
         clients.openWindow('/');
       }
