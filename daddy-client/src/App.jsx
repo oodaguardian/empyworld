@@ -311,24 +311,6 @@ export default function App() {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  // SW messages (accept/decline from notification)
-  useEffect(() => {
-    const handler = async (e) => {
-      const { type, callId, callType } = e.detail || {};
-      if (type === 'ACCEPT_CALL') {
-        if (incomingCall?.callId) {
-          handleAcceptIncoming();
-        } else if (callId) {
-          // App was already open but realtime hadn't delivered the call yet — fetch directly
-          handleAcceptIncoming(callId, callType);
-        }
-      }
-      if (type === 'DECLINE_CALL') handleDeclineIncoming();
-    };
-    window.addEventListener('sw-message', handler);
-    return () => window.removeEventListener('sw-message', handler);
-  }, [incomingCall, handleAcceptIncoming, handleDeclineIncoming]);
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -396,6 +378,24 @@ export default function App() {
     if (incomingCall?.callId) await updateCallStatus(incomingCall.callId, 'declined');
     setIncomingCall(null);
   }, [incomingCall]);
+
+  // SW messages (accept/decline from notification)
+  useEffect(() => {
+    const handler = async (e) => {
+      const { type, callId, callType } = e.detail || {};
+      if (type === 'ACCEPT_CALL') {
+        if (incomingCall?.callId) {
+          handleAcceptIncoming();
+        } else if (callId) {
+          // App was already open but realtime hadn't delivered the call yet — fetch directly
+          handleAcceptIncoming(callId, callType);
+        }
+      }
+      if (type === 'DECLINE_CALL') handleDeclineIncoming();
+    };
+    window.addEventListener('sw-message', handler);
+    return () => window.removeEventListener('sw-message', handler);
+  }, [incomingCall, handleAcceptIncoming, handleDeclineIncoming]);
 
   const handleCallEnd = useCallback(async () => {
     clearTimeout(missTimeoutRef.current);
