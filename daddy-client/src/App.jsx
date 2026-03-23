@@ -12,6 +12,7 @@ import {
   watchCallStatus,
   registerPushSubscription,
   sendPushNotification,
+  getPushSupportInfo,
   fetchCallById,
   fetchLatestRingingCall,
 } from './supabase.js';
@@ -232,6 +233,7 @@ export default function App() {
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [pushGranted, setPushGranted] = useState(false);
+  const [pushStatus, setPushStatus] = useState('');
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -261,7 +263,18 @@ export default function App() {
   }), [callPhase]);
 
   // Register Web Push so Empy can notify us
-  useEffect(() => { registerPushSubscription(DADDY.id).then(ok => setPushGranted(ok)).catch(() => {}); }, []);
+  useEffect(() => {
+    registerPushSubscription(DADDY.id)
+      .then((ok) => {
+        setPushGranted(ok);
+        if (!ok) {
+          const info = getPushSupportInfo();
+          if (!info.secureContext) setPushStatus('Open over HTTPS (not http) to enable notifications.');
+          else if (info.permission === 'denied') setPushStatus('Notifications are blocked in Android browser settings for this site.');
+        }
+      })
+      .catch(() => setPushStatus('Push registration failed. Check browser notification permission.'));
+  }, []);
 
   // On mount: check URL params (opened from notification) or pending ringing calls
   useEffect(() => {
@@ -293,7 +306,13 @@ export default function App() {
 
   // Check push permission status
   useEffect(() => {
-    if ('Notification' in window) setPushGranted(Notification.permission === 'granted');
+    if ('Notification' in window) {
+      const granted = Notification.permission === 'granted';
+      setPushGranted(granted);
+      if (!granted && Notification.permission === 'denied') {
+        setPushStatus('Notifications blocked. In Chrome Android: Site settings -> Notifications -> Allow.');
+      }
+    }
   }, []);
 
   // Show first-visit welcome overlay if not installed as PWA and hasn't dismissed previously
@@ -609,18 +628,50 @@ export default function App() {
                   <span style={{ fontFamily: 'Fredoka One, cursive', fontSize: '1rem', color: '#fff' }}>Step 1: Enable Notifications</span>
                 </div>
                 {pushGranted ? (
-                  <p style={{ fontFamily: 'Nunito, sans-serif', fontSize: '0.85rem', color: '#22C55E' }}>✅ Notifications enabled!</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <p style={{ fontFamily: 'Nunito, sans-serif', fontSize: '0.85rem', color: '#22C55E' }}>✅ Notifications enabled!</p>
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={async () => {
+                        await sendPushNotification(
+                          DADDY.id,
+                          '✅ Daddy push is ready',
+                          'Android notifications are working on this device.',
+                          { type: 'message' }
+                        );
+                        setPushStatus('Test notification sent. If you do not see it, check Android battery optimization + site notification settings.');
+                      }}
+                      style={{ width: '100%', padding: '9px', borderRadius: 10, border: '1px solid rgba(59,130,246,0.45)', background: 'rgba(59,130,246,0.22)', color: '#fff', fontFamily: 'Fredoka One, cursive', fontSize: '0.9rem', cursor: 'pointer' }}
+                    >
+                      Send Test Notification
+                    </motion.button>
+                  </div>
                 ) : (
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     onClick={async () => {
                       const ok = await registerPushSubscription(DADDY.id);
                       setPushGranted(ok);
+                      if (!ok) {
+                        const info = getPushSupportInfo();
+                        if (info.permission === 'denied') {
+                          setPushStatus('Notifications blocked. Enable for this site in Android browser settings.');
+                        } else {
+                          setPushStatus('Could not enable notifications. Ensure HTTPS and Chrome notification permission are enabled.');
+                        }
+                      } else {
+                        setPushStatus('Notifications enabled for this device.');
+                      }
                     }}
                     style={{ width: '100%', padding: '10px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #FF2D8B, #9B30FF)', color: '#fff', fontFamily: 'Fredoka One, cursive', fontSize: '0.95rem', cursor: 'pointer' }}
                   >
                     Allow Notifications
                   </motion.button>
+                )}
+                {pushStatus && (
+                  <p style={{ marginTop: 8, fontFamily: 'Nunito, sans-serif', fontSize: '0.78rem', color: 'rgba(255,255,255,0.75)', lineHeight: 1.4 }}>
+                    {pushStatus}
+                  </p>
                 )}
               </div>
 

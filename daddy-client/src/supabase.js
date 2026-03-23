@@ -134,9 +134,36 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
 }
 
+export function getPushSupportInfo() {
+  return {
+    secureContext: window.isSecureContext,
+    hasServiceWorker: 'serviceWorker' in navigator,
+    hasPushManager: 'PushManager' in window,
+    hasNotification: 'Notification' in window,
+    permission: 'Notification' in window ? Notification.permission : 'unsupported',
+  };
+}
+
 export async function registerPushSubscription(userId) {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  if (!window.isSecureContext) {
+    console.warn('[Push] Requires secure context (https)');
+    return false;
+  }
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return false;
   if (!VAPID_PUBLIC) { console.warn('[Push] VAPID_PUBLIC_KEY not set'); return false; }
+
+  if (Notification.permission === 'denied') {
+    console.warn('[Push] Notification permission denied in browser settings');
+    return false;
+  }
+
+  if (Notification.permission !== 'granted') {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      console.warn('[Push] Permission not granted:', permission);
+      return false;
+    }
+  }
 
   const reg = await navigator.serviceWorker.ready;
   let sub = await reg.pushManager.getSubscription();
@@ -157,8 +184,12 @@ export async function registerPushSubscription(userId) {
   const { error } = await supabase.from('push_subscriptions').upsert({
     user_id: userId, endpoint: sub.endpoint, p256dh: p256dh, auth: authStr,
   }, { onConflict: 'user_id' });
+  if (error) {
+    console.warn('[Push] Failed to save subscription:', error.message);
+    return false;
+  }
 
-  return !error;
+  return true;
 }
 
 export async function sendPushNotification(targetUserId, title, body, data = {}) {
