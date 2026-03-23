@@ -35,6 +35,39 @@ function formatDate(ts) {
 // ─────────────── Sub-components ──────────────────────────────────────────────
 
 function IncomingCallOverlay({ call, onAccept, onDecline }) {
+  const ringRef = useRef(null);
+
+  // Persistent ring tone using Web Audio API (loops until unmount)
+  useEffect(() => {
+    let ctx;
+    let stopped = false;
+    try {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      ringRef.current = ctx;
+      const playRing = () => {
+        if (stopped || ctx.state === 'closed') return;
+        [880, 1100, 880, 1100].forEach((freq, i) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = 'sine';
+          o.frequency.value = freq;
+          g.gain.setValueAtTime(0.35, ctx.currentTime + i * 0.4);
+          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.4 + 0.35);
+          o.connect(g);
+          g.connect(ctx.destination);
+          o.start(ctx.currentTime + i * 0.4);
+          o.stop(ctx.currentTime + i * 0.4 + 0.35);
+        });
+        setTimeout(playRing, 2400);
+      };
+      playRing();
+    } catch (_) {}
+    return () => {
+      stopped = true;
+      try { ctx?.close(); } catch (_) {}
+    };
+  }, []);
+
   return (
     <motion.div
       className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6"
@@ -126,11 +159,24 @@ function ZegoCallOverlay({ callType, onEnd }) {
   return (
     <div className="fixed inset-0 z-50" style={{ background: '#000' }}>
       <div ref={containerRef} className="w-full h-full" />
-      <motion.button whileTap={{ scale: 0.9 }} onClick={onEnd}
-        className="absolute top-4 right-4 btn btn-circle btn-sm z-10"
-        style={{ background: 'rgba(239,68,68,0.8)', border: 'none', color: '#fff' }}>
-        ✕
-      </motion.button>
+      {/* Prominent hang-up button — bottom center */}
+      <div style={{ position: 'absolute', bottom: 32, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 20 }}>
+        <motion.button
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
+          onClick={onEnd}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            padding: '16px 36px', borderRadius: '9999px',
+            background: 'linear-gradient(135deg, #EF4444, #DC2626)', border: '3px solid rgba(255,255,255,0.3)',
+            color: '#fff', fontFamily: 'Fredoka One, cursive', fontSize: '1.1rem',
+            cursor: 'pointer', boxShadow: '0 6px 24px rgba(239,68,68,0.6)',
+          }}
+          aria-label="End call"
+        >
+          <span style={{ fontSize: '1.5rem' }}>📵</span> Hang Up
+        </motion.button>
+      </div>
     </div>
   );
 }
@@ -182,6 +228,8 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [pushGranted, setPushGranted] = useState(false);
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -211,7 +259,19 @@ export default function App() {
   }), [callPhase]);
 
   // Register Web Push so Empy can notify us
-  useEffect(() => { registerPushSubscription(DADDY.id).catch(() => {}); }, []);
+  useEffect(() => { registerPushSubscription(DADDY.id).then(ok => setPushGranted(ok)).catch(() => {}); }, []);
+
+  // Check push permission status
+  useEffect(() => {
+    if ('Notification' in window) setPushGranted(Notification.permission === 'granted');
+  }, []);
+
+  // Show first-visit welcome overlay if not installed as PWA and hasn't dismissed previously
+  useEffect(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    const dismissed = localStorage.getItem('daddy-welcome-dismissed');
+    if (!isStandalone && !dismissed) setShowWelcome(true);
+  }, []);
 
   // PWA install prompt
   useEffect(() => {
@@ -385,9 +445,9 @@ export default function App() {
         </div>
       </header>
 
-      {/* PWA Install Banner */}
+      {/* PWA Install Banner (inline, for when welcome was dismissed but not installed) */}
       <AnimatePresence>
-        {showInstallBanner && (
+        {showInstallBanner && !showWelcome && (
           <motion.div
             initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -50, opacity: 0 }}
             style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', background: 'linear-gradient(90deg, #FF2D8B, #9B30FF)', color: '#fff', fontFamily: 'Nunito, sans-serif', fontSize: '0.85rem' }}>
@@ -467,6 +527,103 @@ export default function App() {
           Send 💙
         </motion.button>
       </div>
+
+      {/* ── Welcome / Setup Overlay (first visit) ── */}
+      <AnimatePresence>
+        {showWelcome && (
+          <motion.div
+            key="welcome"
+            className="fixed inset-0 z-[60] flex flex-col items-center justify-center"
+            style={{ background: 'rgba(22,0,32,0.98)', backdropFilter: 'blur(20px)' }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <div style={{ maxWidth: 380, width: '90%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, textAlign: 'center' }}>
+              {/* Logo */}
+              <motion.div
+                animate={{ y: [0, -8, 0] }}
+                transition={{ duration: 2.5, repeat: Infinity }}
+                style={{ fontSize: '5rem' }}
+              >
+                💌
+              </motion.div>
+
+              <h1 className="font-display" style={{ fontSize: '1.8rem', background: 'linear-gradient(90deg, #FF2D8B, #FF76C2, #9B30FF)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Welcome, Daddy! 💕
+              </h1>
+
+              <p style={{ fontFamily: 'Nunito, sans-serif', fontSize: '0.95rem', color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>
+                This is your portal to receive <strong style={{ color: '#FF76C2' }}>messages</strong>,{' '}
+                <strong style={{ color: '#FF76C2' }}>voice notes</strong>, and{' '}
+                <strong style={{ color: '#FF76C2' }}>video/audio calls</strong> from Empy 🌸
+              </p>
+
+              {/* Step 1: Enable Notifications */}
+              <div style={{ width: '100%', padding: '14px 16px', borderRadius: 16, background: 'rgba(155,48,255,0.15)', border: '1px solid rgba(155,48,255,0.3)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                  <span style={{ fontSize: '1.5rem' }}>🔔</span>
+                  <span style={{ fontFamily: 'Fredoka One, cursive', fontSize: '1rem', color: '#fff' }}>Step 1: Enable Notifications</span>
+                </div>
+                {pushGranted ? (
+                  <p style={{ fontFamily: 'Nunito, sans-serif', fontSize: '0.85rem', color: '#22C55E' }}>✅ Notifications enabled!</p>
+                ) : (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={async () => {
+                      const ok = await registerPushSubscription(DADDY.id);
+                      setPushGranted(ok);
+                    }}
+                    style={{ width: '100%', padding: '10px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #FF2D8B, #9B30FF)', color: '#fff', fontFamily: 'Fredoka One, cursive', fontSize: '0.95rem', cursor: 'pointer' }}
+                  >
+                    Allow Notifications
+                  </motion.button>
+                )}
+              </div>
+
+              {/* Step 2: Install App */}
+              <div style={{ width: '100%', padding: '14px 16px', borderRadius: 16, background: 'rgba(155,48,255,0.15)', border: '1px solid rgba(155,48,255,0.3)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                  <span style={{ fontSize: '1.5rem' }}>📲</span>
+                  <span style={{ fontFamily: 'Fredoka One, cursive', fontSize: '1rem', color: '#fff' }}>Step 2: Install the App</span>
+                </div>
+                {deferredPrompt ? (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={async () => {
+                      deferredPrompt.prompt();
+                      const { outcome } = await deferredPrompt.userChoice;
+                      if (outcome === 'accepted') {
+                        setShowWelcome(false);
+                        localStorage.setItem('daddy-welcome-dismissed', '1');
+                      }
+                      setDeferredPrompt(null);
+                    }}
+                    style={{ width: '100%', padding: '10px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #3B82F6, #9B30FF)', color: '#fff', fontFamily: 'Fredoka One, cursive', fontSize: '0.95rem', cursor: 'pointer' }}
+                  >
+                    Install Daddy Portal
+                  </motion.button>
+                ) : (
+                  <div style={{ fontFamily: 'Nunito, sans-serif', fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
+                    <p>Tap your browser's <strong style={{ color: '#FF76C2' }}>Share</strong> button ↗ then <strong style={{ color: '#FF76C2' }}>"Add to Home Screen"</strong></p>
+                    <p style={{ marginTop: 4, fontSize: '0.75rem', opacity: 0.5 }}>(On Chrome/Edge: tap ⋮ → Install app)</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Continue button */}
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setShowWelcome(false);
+                  localStorage.setItem('daddy-welcome-dismissed', '1');
+                }}
+                style={{ marginTop: 4, padding: '12px 40px', borderRadius: 9999, border: '2px solid rgba(255,255,255,0.25)', background: 'transparent', color: '#fff', fontFamily: 'Fredoka One, cursive', fontSize: '1rem', cursor: 'pointer' }}
+              >
+                {pushGranted ? 'Continue to Portal →' : 'Skip for now'}
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Overlays ── */}
       <AnimatePresence>

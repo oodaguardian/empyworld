@@ -25,16 +25,19 @@ self.addEventListener('push', (e) => {
   let data = {};
   try { data = e.data?.json() || {}; } catch { data = { title: e.data?.text() || 'Empy 🌸' }; }
 
+  const isCall = data.data?.type === 'call';
   const title = data.title || "Empy's World 💕";
   const opts = {
     body: data.body || 'You have a new message',
     icon: '/empxvc.png',
     badge: '/empxvc.png',
-    tag: data.data?.type === 'call' ? 'incoming-call' : 'message',
-    requireInteraction: data.data?.type === 'call',
-    vibrate: data.data?.type === 'call' ? [300, 100, 300, 100, 300] : [100, 50, 100],
+    tag: isCall ? 'incoming-call' : 'message',
+    renotify: true,
+    requireInteraction: isCall,
+    silent: false,
+    vibrate: isCall ? [300, 100, 300, 100, 300, 100, 300, 100, 300] : [100, 50, 100],
     data: data.data || {},
-    actions: data.data?.type === 'call'
+    actions: isCall
       ? [
           { action: 'accept', title: '✅ Accept' },
           { action: 'decline', title: '❌ Decline' },

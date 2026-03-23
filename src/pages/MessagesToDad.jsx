@@ -125,15 +125,24 @@ function ZegoCallOverlay({ callType, onEnd }) {
   return (
     <div className="fixed inset-0 z-50" style={{ background: '#000' }}>
       <div ref={containerRef} className="w-full h-full" />
-      <motion.button
-        whileTap={{ scale: 0.9 }}
-        onClick={onEnd}
-        className="absolute top-4 right-4 btn btn-circle btn-sm z-10"
-        style={{ background: 'rgba(255,45,139,0.8)', border: 'none', color: '#fff' }}
-        aria-label="End call"
-      >
-        ✕
-      </motion.button>
+      {/* Prominent hang-up button — bottom center */}
+      <div style={{ position: 'absolute', bottom: 32, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 20 }}>
+        <motion.button
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
+          onClick={onEnd}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            padding: '16px 36px', borderRadius: '9999px',
+            background: 'linear-gradient(135deg, #EF4444, #DC2626)', border: '3px solid rgba(255,255,255,0.3)',
+            color: '#fff', fontFamily: 'Fredoka One, cursive', fontSize: '1.1rem',
+            cursor: 'pointer', boxShadow: '0 6px 24px rgba(239,68,68,0.6)',
+          }}
+          aria-label="End call"
+        >
+          <span style={{ fontSize: '1.5rem' }}>📵</span> Hang Up
+        </motion.button>
+      </div>
     </div>
   );
 }
