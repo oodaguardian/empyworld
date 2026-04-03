@@ -4,6 +4,9 @@
   "description": "Empy TV - Kids Entertainment Portal",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
