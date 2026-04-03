@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageLayout from '../components/PageLayout';
 import MoviePlayer from '../components/MoviePlayer';
@@ -11,17 +11,53 @@ export default function Movies() {
   const [selected, setSelected] = useState(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchMovies()
-      .then(setMovies)
-      .finally(() => setLoading(false));
+  const loadMovies = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
+    try {
+      const list = await fetchMovies();
+      setMovies(list);
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadMovies();
+
+    const interval = setInterval(() => {
+      loadMovies({ silent: true });
+    }, 15000);
+
+    const onVisible = () => {
+      if (!document.hidden) {
+        loadMovies({ silent: true });
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [loadMovies]);
 
   return (
     <>
       <PageLayout title="Movies" icon="🎬">
         {/* Upload shortcut */}
         <div className="flex justify-end mb-3 flex-shrink-0">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => loadMovies()}
+            className="btn btn-sm font-display gap-1 mr-2"
+            style={{
+              background: 'rgba(255,255,255,0.12)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              color: 'white',
+            }}
+          >
+            ⟳ Refresh
+          </motion.button>
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => navigate('/movies/upload')}

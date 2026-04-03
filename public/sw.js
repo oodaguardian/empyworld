@@ -1,7 +1,7 @@
 // public/sw.js — Empy World Service Worker
 // Handles: Web Push notifications + PWA offline caching
 
-const CACHE_NAME = 'empyworld-v1';
+const CACHE_NAME = 'empyworld-v2';
 const PRECACHE = ['/', '/index.html'];
 
 // ── Install ──────────────────────────────────────────────────────────────────
@@ -77,17 +77,33 @@ self.addEventListener('notificationclick', (e) => {
 
 // ── Network-first fetch ──────────────────────────────────────────────────────
 self.addEventListener('fetch', (e) => {
-  // Skip non-GET and cross-origin
-  if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) return;
+  const req = e.request;
+  const url = new URL(req.url);
+  const isSameOrigin = url.origin === self.location.origin;
+  const hasRange = req.headers.has('range');
+  const isBunnyApi = isSameOrigin && url.pathname.startsWith('/api/bunny/');
+  const isMedia = req.destination === 'video' || req.destination === 'audio';
+
+  // Never intercept media/range/bunny-streaming requests.
+  // Range responses are often 206 and cannot be safely cached via Cache API.
+  if (req.method !== 'GET' || !isSameOrigin || hasRange || isBunnyApi || isMedia) return;
+
   e.respondWith(
-    fetch(e.request)
+    fetch(req)
       .then((resp) => {
-        if (resp.ok) {
+        if (resp.ok && resp.status === 200 && resp.type === 'basic') {
           const clone = resp.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(e.request, clone));
+          caches.open(CACHE_NAME).then((c) => c.put(req, clone));
         }
         return resp;
       })
-      .catch(() => caches.match(e.request))
+      .catch(async () => {
+        const cached = await caches.match(req);
+        if (cached) return cached;
+        if (req.mode === 'navigate') {
+          return caches.match('/index.html');
+        }
+        return Response.error();
+      })
   );
 });

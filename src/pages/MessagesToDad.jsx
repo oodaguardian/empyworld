@@ -44,8 +44,8 @@ function CallRingingOverlay({ type, onCancel }) {
       >
         {type === 'video' ? '📹' : '📞'}
       </motion.div>
-      <p className="glitter-text font-display text-3xl">Calling Daddy…</p>
-      <p className="text-white/60 font-body">Waiting for him to pick up 💕</p>
+      <p className="glitter-text font-display text-3xl">Calling Empy…</p>
+      <p className="text-white/60 font-body">Waiting for her to pick up 💕</p>
       <motion.button
         whileTap={{ scale: 0.9 }}
         onClick={onCancel}

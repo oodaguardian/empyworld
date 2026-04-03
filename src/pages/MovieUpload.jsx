@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { uploadMovie, fetchMovies, deleteMovie } from '../services/bunny';
+import { uploadMovie, fetchMovies, deleteMovie, updateMovieTitle } from '../services/bunny';
 import logo from '../emplogo.png';
 
 const UPLOAD_PIN = localStorage.getItem('empyPIN') || '1234';
@@ -90,6 +90,9 @@ export default function MovieUpload() {
   const [success, setSuccess] = useState('');
   const [movies, setMovies] = useState([]);
   const [loadingMovies, setLoadingMovies] = useState(false);
+  const [editingMovie, setEditingMovie] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [savingTitle, setSavingTitle] = useState(false);
   const [drag, setDrag] = useState(false);
   const fileRef = useRef();
   const uploadStart = useRef(0);
@@ -170,9 +173,49 @@ export default function MovieUpload() {
     if (!confirm(`Delete "${movie.title}"? This cannot be undone.`)) return;
     try {
       await deleteMovie(movie.filename);
+      if (editingMovie === movie.filename) {
+        setEditingMovie(null);
+        setEditTitle('');
+      }
       loadMovies();
     } catch (err) {
       setError(`Delete failed: ${err.message}`);
+    }
+  };
+
+  const startEdit = (movie) => {
+    setEditingMovie(movie.filename);
+    setEditTitle(movie.title);
+    setError('');
+    setSuccess('');
+  };
+
+  const cancelEdit = () => {
+    setEditingMovie(null);
+    setEditTitle('');
+  };
+
+  const handleSaveTitle = async (movie) => {
+    const next = editTitle.trim();
+    if (!next) {
+      setError('Title cannot be empty.');
+      return;
+    }
+
+    setSavingTitle(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await updateMovieTitle(movie.filename, next);
+      setSuccess(`✅ Updated title to "${next}"`);
+      setEditingMovie(null);
+      setEditTitle('');
+      await loadMovies();
+    } catch (err) {
+      setError(`Update failed: ${err.message}`);
+    } finally {
+      setSavingTitle(false);
     }
   };
 
@@ -342,16 +385,54 @@ export default function MovieUpload() {
                   🎬
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-display text-sm truncate">{movie.title}</p>
+                  {editingMovie === movie.filename ? (
+                    <input
+                      type="text"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="w-full rounded-lg px-2 py-1 text-white text-sm font-display outline-none"
+                      style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)' }}
+                      maxLength={80}
+                    />
+                  ) : (
+                    <p className="text-white font-display text-sm truncate">{movie.title}</p>
+                  )}
                   <p className="text-white/40 font-body text-xs">
                     {movie.addedAt ? new Date(movie.addedAt).toLocaleDateString() : ''}
                     {movie.size ? ` · ${fmt(movie.size)}` : ''}
                   </p>
                 </div>
-                <button onClick={() => handleDelete(movie)}
-                  className="flex-shrink-0 text-red-400/60 hover:text-red-400 transition-colors font-body text-xs px-2 py-1 rounded-lg hover:bg-red-500/10">
-                  Delete
-                </button>
+                {editingMovie === movie.filename ? (
+                  <div className="flex-shrink-0 flex items-center gap-1">
+                    <button
+                      onClick={() => handleSaveTitle(movie)}
+                      disabled={savingTitle}
+                      className="text-emerald-300/90 hover:text-emerald-200 transition-colors font-body text-xs px-2 py-1 rounded-lg hover:bg-emerald-500/10 disabled:opacity-40"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      disabled={savingTitle}
+                      className="text-white/50 hover:text-white/80 transition-colors font-body text-xs px-2 py-1 rounded-lg hover:bg-white/10 disabled:opacity-40"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex-shrink-0 flex items-center gap-1">
+                    <button
+                      onClick={() => startEdit(movie)}
+                      className="text-blue-300/80 hover:text-blue-200 transition-colors font-body text-xs px-2 py-1 rounded-lg hover:bg-blue-500/10"
+                    >
+                      Edit
+                    </button>
+                    <button onClick={() => handleDelete(movie)}
+                      className="text-red-400/60 hover:text-red-400 transition-colors font-body text-xs px-2 py-1 rounded-lg hover:bg-red-500/10">
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

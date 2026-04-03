@@ -6,7 +6,8 @@ import useTTS from '../hooks/useTTS';
 import useScore from '../hooks/useScore';
 import { playCorrect, playWrong, playClick } from '../services/sounds';
 
-const NUMBERS = Array.from({ length: 20 }, (_, i) => i + 1);
+const MAX_LEARN_NUMBER = 100;
+const NUMBERS = Array.from({ length: MAX_LEARN_NUMBER }, (_, i) => i + 1);
 const EMOJIS = ['🐱', '🐶', '🍎', '🌟', '🦋', '🐠', '🌺', '🎈', '🐻', '💖'];
 
 function shuffle(arr) {
@@ -40,7 +41,7 @@ export default function NumberGame() {
     speak(`${n}. ${Array.from({ length: n }, (_, i) => i + 1).join(', ')}`, { rate: 0.65 });
   };
 
-  const nextNum = () => { playClick(); setCurrentNum(n => Math.min(n + 1, 20)); };
+  const nextNum = () => { playClick(); setCurrentNum(n => Math.min(n + 1, MAX_LEARN_NUMBER)); };
   const prevNum = () => { playClick(); setCurrentNum(n => Math.max(n - 1, 1)); };
 
   // --- Count mode ---
@@ -52,7 +53,7 @@ export default function NumberGame() {
   };
 
   const genCountProblem = () => {
-    const target = 1 + Math.floor(Math.random() * 8);
+    const target = 10 + Math.floor(Math.random() * 91);
     setCountTarget(target);
     setCounted(0);
     setIsCorrect(null);
@@ -125,7 +126,7 @@ export default function NumberGame() {
   };
 
   return (
-    <GameShell title="Number Fun" icon="🔢" gameType="numbers" backTo="/learning-games" instructions="Learn numbers 1-20!">
+    <GameShell title="Number Fun" icon="🔢" gameType="numbers" backTo="/learning-games" instructions="Learn numbers 1-100!">
       <div className="h-full flex flex-col items-center justify-center p-4 gap-4">
         {/* Mode tabs */}
         <div className="flex gap-2">
@@ -168,11 +169,11 @@ export default function NumberGame() {
                 className="btn btn-circle btn-lg bg-empy-blue/30 border-empy-blue/50 text-white text-2xl disabled:opacity-30">◀</motion.button>
               <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => speakNumber(currentNum)}
                 className="btn btn-lg bg-empy-yellow/30 border-empy-yellow/50 text-white font-display gap-2">🔊 Count</motion.button>
-              <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={nextNum} disabled={currentNum === 20}
+              <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={nextNum} disabled={currentNum === MAX_LEARN_NUMBER}
                 className="btn btn-circle btn-lg bg-empy-blue/30 border-empy-blue/50 text-white text-2xl disabled:opacity-30">▶</motion.button>
             </div>
 
-            <div className="flex flex-wrap justify-center gap-1">
+            <div className="flex flex-wrap justify-center gap-1 max-h-40 overflow-y-auto pr-1">
               {NUMBERS.map(n => (
                 <motion.button key={n} whileTap={{ scale: 0.9 }} onClick={() => { setCurrentNum(n); playClick(); }}
                   className={`w-9 h-9 rounded-lg font-display text-sm flex items-center justify-center ${n === currentNum ? 'bg-empy-pink text-white shadow-lg' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>
@@ -186,23 +187,26 @@ export default function NumberGame() {
         {mode === MODES.COUNT && countTarget && (
           <div className="flex flex-col items-center gap-6">
             <p className="text-white/60 font-display text-sm">Round {round + 1}/8 · Score: {score}</p>
-            <p className="text-xl font-display text-white">Tap each one to count to <span className="text-empy-yellow text-3xl">{countTarget}</span>!</p>
-            <div className="flex flex-wrap justify-center gap-3 max-w-sm">
-              {Array.from({ length: countTarget }).map((_, i) => (
-                <motion.button
-                  key={i}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.8 }}
-                  onClick={i === counted ? handleCountTap : undefined}
-                  className={`w-16 h-16 rounded-2xl text-3xl flex items-center justify-center transition-all border-2 ${
-                    i < counted ? 'bg-green-500/30 border-green-400' : i === counted ? 'bg-empy-pink/30 border-empy-pink animate-pulse' : 'bg-white/10 border-white/20'
-                  }`}
-                >
-                  {EMOJIS[countTarget % EMOJIS.length]}
-                </motion.button>
-              ))}
+            <p className="text-xl font-display text-white text-center">Tap to count all the way to <span className="text-empy-yellow text-3xl">{countTarget}</span>!</p>
+            <div className="w-full max-w-sm px-2">
+              <div className="h-4 rounded-full bg-white/10 overflow-hidden border border-white/20">
+                <div
+                  className="h-full bg-empy-pink transition-all duration-200"
+                  style={{ width: `${Math.min(100, (counted / countTarget) * 100)}%` }}
+                />
+              </div>
             </div>
             <p className="text-3xl font-display text-empy-yellow">{counted} / {countTarget}</p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleCountTap}
+              disabled={counted >= countTarget}
+              className="btn btn-lg font-display text-white border-none disabled:opacity-40"
+              style={{ background: 'linear-gradient(135deg, #FF2D8B, #9B30FF)' }}
+            >
+              {counted + 1 <= countTarget ? `Count ${counted + 1}` : 'Great Job!'}
+            </motion.button>
           </div>
         )}
 
