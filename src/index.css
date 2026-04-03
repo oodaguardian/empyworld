@@ -176,6 +176,7 @@ html, body, #root {
   padding: 2px;
   background: linear-gradient(135deg, #FF2D8B, #9B30FF, #3B82F6, #FF76C2);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;

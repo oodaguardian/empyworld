@@ -64,14 +64,17 @@ export default async function handler(req, res) {
     res.status(upstream.status);
 
     if (isDirectoryListing) {
-      // Force application/json for directory listings.
-      // Bunny may return text/plain or omit content-type, which breaks the client parser.
       const text = await upstream.text();
       res.setHeader('Content-Type', 'application/json');
+
+      // Non-2xx = auth failure or zone not found — surface the real error
+      if (!upstream.ok) {
+        return res.json({ __error: true, status: upstream.status, detail: text.slice(0, 300) });
+      }
+
       try {
         res.json(JSON.parse(text));
       } catch {
-        // Bunny returned non-JSON (empty dir or auth error) — return empty array
         res.json([]);
       }
     } else if (ct.includes('application/json')) {

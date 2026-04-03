@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "checkJs": false,
+    "strict": false,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*", "api/**/*", "scripts/**/*", "bunny-edge/**/*"],
+  "exclude": ["node_modules", "dist", "supabase/functions"]
+}

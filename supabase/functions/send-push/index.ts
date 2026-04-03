@@ -2,7 +2,14 @@
 // Deploy: supabase functions deploy send-push --no-verify-jwt
 // Web Push RFC 8291 (aes128gcm) + VAPID (RFC 8292)
 
+// @ts-ignore — Deno ESM import (resolved at runtime by Supabase Edge)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+// Deno global declarations (this file runs in Deno, not Node)
+declare const Deno: {
+  env: { get(key: string): string | undefined };
+  serve(handler: (req: Request) => Promise<Response>): void;
+};
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,11 +38,11 @@ function b64decode(str: string): Uint8Array {
 
 async function hkdf(salt: Uint8Array, ikm: Uint8Array, info: Uint8Array, length: number): Promise<Uint8Array> {
   // Extract: PRK = HMAC-SHA-256(salt, IKM)
-  const extractKey = await crypto.subtle.importKey('raw', salt, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const prk = new Uint8Array(await crypto.subtle.sign('HMAC', extractKey, ikm));
+  const extractKey = await crypto.subtle.importKey('raw', salt as unknown as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const prk = new Uint8Array(await crypto.subtle.sign('HMAC', extractKey, ikm as unknown as BufferSource));
   // Expand: OKM = HMAC-SHA-256(PRK, info || 0x01)
-  const expandKey = await crypto.subtle.importKey('raw', prk, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const expanded = new Uint8Array(await crypto.subtle.sign('HMAC', expandKey, concatBuffers(info, new Uint8Array([1]))));
+  const expandKey = await crypto.subtle.importKey('raw', prk as unknown as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const expanded = new Uint8Array(await crypto.subtle.sign('HMAC', expandKey, concatBuffers(info, new Uint8Array([1])) as unknown as BufferSource));
   return expanded.slice(0, length);
 }
 
@@ -48,7 +55,7 @@ async function buildVapidAuth(audience: string, subject: string, privKeyB64: str
   const signing = `${header}.${payload}`;
 
   const privKey = await crypto.subtle.importKey(
-    'pkcs8', b64decode(privKeyB64),
+    'pkcs8', b64decode(privKeyB64) as unknown as BufferSource,
     { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']
   );
   const sigDer = new Uint8Array(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privKey, new TextEncoder().encode(signing)));
@@ -67,7 +74,7 @@ async function encryptPayload(payloadStr: string, p256dhB64: string, authB64: st
 
   // Import subscriber public key
   const subscriberPubKey = await crypto.subtle.importKey(
-    'raw', subscriberPub, { name: 'ECDH', namedCurve: 'P-256' }, false, []
+    'raw', subscriberPub as unknown as BufferSource, { name: 'ECDH', namedCurve: 'P-256' }, false, []
   );
 
   // Generate ephemeral ECDH key pair
@@ -100,9 +107,9 @@ async function encryptPayload(payloadStr: string, p256dhB64: string, authB64: st
   const plaintext = concatBuffers(new TextEncoder().encode(payloadStr), new Uint8Array([2]));
 
   // Encrypt with AES-128-GCM
-  const aesKey = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']);
+  const aesKey = await crypto.subtle.importKey('raw', cek as unknown as BufferSource, 'AES-GCM', false, ['encrypt']);
   const ciphertext = new Uint8Array(
-    await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, aesKey, plaintext)
+    await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce as unknown as BufferSource }, aesKey, plaintext as unknown as BufferSource)
   );
 
   // Build aes128gcm body: salt(16) || rs(4, uint32 BE) || idlen(1) || keyid(sender pub, 65) || ciphertext
@@ -153,7 +160,7 @@ Deno.serve(async (req) => {
         'Content-Encoding': 'aes128gcm',
         TTL: '86400',
       },
-      body: encryptedBody,
+      body: encryptedBody as unknown as BodyInit,
     });
 
     const respText = resp.ok ? '' : await resp.text().catch(() => '');
