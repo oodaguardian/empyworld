@@ -27,7 +27,11 @@ export default async function handler(req, res) {
     process.env.VITE_BUNNY_STORAGE_PASSWORD ||
     '';
 
-  const url = `https://${STORAGE_HOST}/${STORAGE_ZONE}/${bunnyPath}`;
+  // Bunny Storage requires a trailing slash for directory listing.
+  // Vercel's [...path] routing strips trailing slashes from captured segments,
+  // so we restore it: any GET to a path without a file extension is a directory list.
+  const isDirectoryListing = req.method === 'GET' && !(/\.[a-zA-Z0-9]{1,5}$/.test(bunnyPath));
+  const url = `https://${STORAGE_HOST}/${STORAGE_ZONE}/${bunnyPath}${isDirectoryListing ? '/' : ''}`;
 
   const headers = {
     AccessKey: STORAGE_PASS,
@@ -45,6 +49,8 @@ export default async function handler(req, res) {
       chunks.push(chunk);
     }
     body = Buffer.concat(chunks);
+    // Bunny requires explicit Content-Length for reliable streaming uploads
+    headers['Content-Length'] = String(body.length);
   }
 
   try {
@@ -56,17 +62,28 @@ export default async function handler(req, res) {
 
     const ct = upstream.headers.get('content-type') || '';
     res.status(upstream.status);
-    res.setHeader('Content-Type', ct);
 
-    if (ct.includes('application/json')) {
-      const data = await upstream.json();
-      res.json(data);
+    if (isDirectoryListing) {
+      // Force application/json for directory listings.
+      // Bunny may return text/plain or omit content-type, which breaks the client parser.
+      const text = await upstream.text();
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        res.json(JSON.parse(text));
+      } catch {
+        // Bunny returned non-JSON (empty dir or auth error) — return empty array
+        res.json([]);
+      }
+    } else if (ct.includes('application/json')) {
+      res.setHeader('Content-Type', ct);
+      res.json(await upstream.json());
     } else {
       const buf = Buffer.from(await upstream.arrayBuffer());
+      res.setHeader('Content-Type', ct);
       res.send(buf);
     }
   } catch (err) {
     console.error('[bunny-proxy]', err);
-    res.status(502).json({ error: 'Upstream request failed' });
+    res.status(502).json({ error: 'Upstream request failed', detail: err.message });
   }
 }
