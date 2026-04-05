@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../navigation';
 import { motion } from 'framer-motion';
 import { GAME_POKI_MAP } from '../constants/deeplinks';
 

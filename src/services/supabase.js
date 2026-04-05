@@ -1,10 +1,10 @@
 // src/services/supabase.js — Supabase realtime messages + calls + Web Push
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL    = import.meta.env.VITE_SUPABASE_URL    || '';
-const SUPABASE_ANON   = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const VAPID_PUBLIC    = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
-const EDGE_PUSH_URL   = import.meta.env.VITE_SUPABASE_EDGE_PUSH_URL || '';
+const SUPABASE_URL    = process.env.NEXT_PUBLIC_SUPABASE_URL    || '';
+const SUPABASE_ANON   = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const VAPID_PUBLIC    = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+const EDGE_PUSH_URL   = process.env.NEXT_PUBLIC_SUPABASE_EDGE_PUSH_URL || '';
 
 export let supabaseReady = Boolean(SUPABASE_URL && SUPABASE_ANON);
 

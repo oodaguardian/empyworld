@@ -1,9 +1,9 @@
 import React, { useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../navigation';
 import { motion } from 'framer-motion';
 import VideoCenter from './VideoCenter';
 import useGesture from '../hooks/useGesture';
-import empxvcLogo from '../empxvc.png';
+const empxvcLogo = '/empxvc.png';
 
 const CARDS = [
   { id: 'learning-games', label: 'Learning Games', icon: '🦄', path: '/learning-games', color: 'from-pink-500 to-purple-600' },

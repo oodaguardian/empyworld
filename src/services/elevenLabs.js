@@ -13,7 +13,7 @@ const MAX_CACHE = 50;
 let currentAudio = null;
 
 function getApiKey() {
-  const key = import.meta.env.VITE_ELEVENLABS_API_KEY || '';
+  const key = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '';
   if (!key || key === 'YOUR_ELEVENLABS_API_KEY_HERE') return '';
   return key;
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getVideoSourceCandidates } from '../services/bunny';
-import logo from '../emplogo.png';
+const logo = '/emplogo.png';
 
 function getFileExt(path = '') {
   const clean = String(path || '').split('?')[0];

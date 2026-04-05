@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import empxvcLogo from '../empxvc.png';
+const empxvcLogo = '/empxvc.png';
 import { playStartupJingle } from '../services/sounds';
 
 // Floating decorative particles

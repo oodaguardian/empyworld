@@ -8,6 +8,6 @@
     "strict": false,
     "skipLibCheck": true
   },
-  "include": ["src/**/*", "api/**/*", "scripts/**/*", "bunny-edge/**/*"],
+  "include": ["src/**/*", "app/**/*", "api/**/*", "scripts/**/*", "bunny-edge/**/*"],
   "exclude": ["node_modules", "dist", "supabase/functions"]
 }

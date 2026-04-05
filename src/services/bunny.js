@@ -13,7 +13,7 @@
  *   VITE_BUNNY_MOVIES_CDN    — CDN hostname for video playback
  */
 
-const CDN_HOST = import.meta.env.VITE_BUNNY_MOVIES_CDN || 'empy-movies-cdn.b-cdn.net';
+const CDN_HOST = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BUNNY_MOVIES_CDN) || 'empy-movies-cdn.b-cdn.net';
 const MOVIES_DIR = 'movies';
 const VIDEO_EXTS = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.ogv', '.ts', '.m3u8'];
 const TITLE_OVERRIDES_KEY = 'empyMovieTitleOverrides';

@@ -3,13 +3,14 @@ import { useState, useCallback, useEffect } from 'react';
 const STORAGE_KEY = 'empytv_scores';
 
 function loadScores() {
+  if (typeof window === 'undefined') return {};
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
   } catch { return {}; }
 }
 
 function saveScores(scores) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(scores));
+  if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, JSON.stringify(scores));
 }
 
 export default function useScore(gameId) {

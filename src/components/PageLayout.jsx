@@ -1,7 +1,7 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../navigation';
 import { motion } from 'framer-motion';
-import empxvcLogo from '../empxvc.png';
+const empxvcLogo = '/empxvc.png';
 
 export default function PageLayout({ title, icon, children, bgGradient }) {
   const navigate = useNavigate();

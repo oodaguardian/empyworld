@@ -1,4 +1,4 @@
-const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
+const API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
 const BASE = 'https://www.googleapis.com/youtube/v3';
 
 const SAFE_PARAMS = {
