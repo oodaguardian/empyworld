@@ -175,19 +175,20 @@ export function getVideoSourceCandidates(filename) {
   const uniquePaths = Array.from(new Set(pathVariants.filter(Boolean)));
   const sources = [];
 
-  // Use same-origin proxy first in dev/prod to avoid CDN CORS issues.
-  for (const path of uniquePaths) {
-    sources.push({
-      url: getVideoProxyUrl(path),
-      kind: 'proxy',
-      path,
-    });
-  }
-
+  // CDN first — <video> tags don't enforce CORS, and CDN supports streaming/range requests.
   for (const path of uniquePaths) {
     sources.push({
       url: `https://${CDN_HOST}/${path.split('/').map(encodeURIComponent).join('/')}`,
       kind: 'cdn',
+      path,
+    });
+  }
+
+  // Proxy as fallback (redirects to CDN for file GETs).
+  for (const path of uniquePaths) {
+    sources.push({
+      url: getVideoProxyUrl(path),
+      kind: 'proxy',
       path,
     });
   }

@@ -40,6 +40,13 @@ async function handleRequest(request, params, method) {
 
   // Bunny Storage requires a trailing slash for directory listing.
   const isDirectoryListing = method === 'GET' && !(/\.[a-zA-Z0-9]{1,5}$/.test(bunnyPath));
+
+  // For file GETs, redirect to CDN — don't buffer large files through serverless.
+  if (method === 'GET' && !isDirectoryListing) {
+    const CDN_HOST = process.env.NEXT_PUBLIC_BUNNY_MOVIES_CDN || 'empy-movies-cdn.b-cdn.net';
+    return Response.redirect(`https://${CDN_HOST}/${bunnyPath}`, 302);
+  }
+
   const url = `https://${STORAGE_HOST}/${STORAGE_ZONE}/${bunnyPath}${isDirectoryListing ? '/' : ''}`;
 
   const headers = {
